@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { embedUrl, parseYouTubeId } from "@/lib/youtube";
 import { GENRES, popularSongs, type Genre, type PopularSong } from "@/lib/popular";
+import MicCheckGate from "@/components/MicCheckGate";
 import { scorePerformance } from "@/lib/matching";
 import {
   HISTORY_KEY,
@@ -18,7 +19,7 @@ import {
   smoothFrequencies,
 } from "@/lib/pitch";
 
-type Phase = "pick" | "performing" | "scored";
+type Phase = "pick" | "check" | "performing" | "scored";
 
 type ScoreView = {
   accuracy: number;
@@ -38,6 +39,7 @@ export default function PopularPage() {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("—");
   const [score, setScore] = useState<ScoreView | null>(null);
+  const [runId, setRunId] = useState(0);
 
   const micContext = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
@@ -213,13 +215,24 @@ export default function PopularPage() {
   async function beginSong(s: PopularSong | null, vid: string) {
     setError(null);
     setScore(null);
-    if (!(await startMic())) return;
     setSong(s);
     setVideoId(vid);
+    // Sound check first: the video plays and we verify the mic hears
+    // the room, not the track. Performing on a bleeding mic just
+    // traces the song and drowns the voice.
+    setPhase("check");
+  }
+
+  async function startAfterCheck() {
+    if (!(await startMic())) {
+      setPhase("pick");
+      return;
+    }
     frames.current = [];
     recent.current = [];
     line.current = [];
     setNote("—");
+    setRunId((r) => r + 1); // restart the video from the top
     setPhase("performing");
     detectLoop();
   }
@@ -470,6 +483,38 @@ export default function PopularPage() {
             </div>
           )}
 
+          {phase === "check" && (
+            <div className="mt-10">
+              {song && (
+                <div className="text-xl font-black">
+                  {song.title}{" "}
+                  <span className="font-normal text-[#b8b8c0]">
+                    · {song.artist}
+                  </span>
+                </div>
+              )}
+              <div className="mx-auto mt-4 aspect-video w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-black">
+                <iframe
+                  key={`${videoId}-check`}
+                  src={`${embedUrl(videoId)}&autoplay=1`}
+                  title="Song playback"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="h-full w-full"
+                />
+              </div>
+              <div className="mx-auto mt-6 max-w-md">
+                <MicCheckGate onPass={startAfterCheck} />
+              </div>
+              <button
+                onClick={() => setPhase("pick")}
+                className="mx-auto mt-4 block text-sm font-bold text-[#8a8a94] hover:text-white"
+              >
+                ← Back to songs
+              </button>
+            </div>
+          )}
+
           {(phase === "performing" || phase === "scored") && (
             <div className="mt-10">
               {song && (
@@ -482,7 +527,7 @@ export default function PopularPage() {
               )}
               <div className="mx-auto mt-4 aspect-video w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-black">
                 <iframe
-                  key={videoId}
+                  key={`${videoId}-${runId}`}
                   src={`${embedUrl(videoId)}&autoplay=${phase === "performing" ? 1 : 0}`}
                   title="Song playback"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

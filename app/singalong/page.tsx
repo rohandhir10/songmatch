@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import MicCheckGate from "@/components/MicCheckGate";
 import {
   extractContourAsync,
   scoreAgainstContour,
@@ -22,7 +23,7 @@ import {
   smoothFrequencies,
 } from "@/lib/pitch";
 
-type Phase = "pick" | "analyzing" | "ready" | "performing" | "scored";
+type Phase = "pick" | "analyzing" | "ready" | "check" | "performing" | "scored";
 
 const PAST = 2;
 const AHEAD = 4;
@@ -266,6 +267,22 @@ export default function SingAlongPage() {
     }
   }
 
+  // Sound check first: the track plays and we verify the mic hears
+  // the room, not the speakers. Performing on a bleeding mic just
+  // traces the song and drowns the voice.
+  async function beginCheck() {
+    if (!audio.current) return;
+    setError(null);
+    setScore(null);
+    try {
+      audio.current.currentTime = 0;
+      await audio.current.play();
+      setPhase("check");
+    } catch {
+      setError("Couldn't start playback. Try again.");
+    }
+  }
+
   async function startPerformance() {
     if (!audio.current) return;
     try {
@@ -298,6 +315,8 @@ export default function SingAlongPage() {
       setError(null);
       setNote("—");
       setDevCents(null);
+      audio.current.pause();
+      audio.current.currentTime = 0;
       setPhase("performing");
       await audio.current.play();
       detectLoop();
@@ -450,7 +469,7 @@ export default function SingAlongPage() {
                 Vocal line locked · {Math.round(duration)}s
               </p>
               <button
-                onClick={startPerformance}
+                onClick={beginCheck}
                 className="mt-6 w-full rounded-2xl bg-[#c8ff3d] px-6 py-4 text-lg font-black text-black transition hover:-translate-y-1"
               >
                 Sing it →
@@ -460,6 +479,29 @@ export default function SingAlongPage() {
                 className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.05] px-6 py-3 text-sm font-bold hover:bg-white/[0.08]"
               >
                 Choose a different song
+              </button>
+            </div>
+          )}
+
+          {phase === "check" && (
+            <div className="mt-10">
+              <div className="truncate text-xl font-black">{fileName}</div>
+              <div className="mx-auto mt-6 max-w-md">
+                <MicCheckGate
+                  onPass={() => {
+                    audio.current?.pause();
+                    startPerformance();
+                  }}
+                />
+              </div>
+              <button
+                onClick={() => {
+                  audio.current?.pause();
+                  setPhase("ready");
+                }}
+                className="mx-auto mt-4 block text-sm font-bold text-[#8a8a94] hover:text-white"
+              >
+                ← Back
               </button>
             </div>
           )}
