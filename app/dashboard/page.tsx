@@ -104,12 +104,6 @@ export default function DashboardPage() {
           </Link>
           <div className="flex items-center gap-5">
             <Link
-              href="/matches"
-              className="text-sm text-[#b8b8c0] hover:text-white"
-            >
-              Matches
-            </Link>
-            <Link
               href="/scan"
               className="rounded-full border border-white/10 px-4 py-2 text-sm text-[#b8b8c0] hover:text-white"
             >
@@ -125,7 +119,10 @@ export default function DashboardPage() {
           <p className="mt-5 max-w-2xl text-[#b8b8c0]">
             Singing as a{" "}
             <span className="font-bold text-white">{profile.voiceType}</span>{" "}
-            · {profile.lowNote}–{profile.highNote}
+            · {profile.lowNote}–{profile.highNote} ·{" "}
+            <Link href="/matches" className="font-bold text-[#c8ff3d] hover:underline">
+              My matches
+            </Link>
           </p>
 
           <div className="mt-12 grid gap-3 sm:grid-cols-3">

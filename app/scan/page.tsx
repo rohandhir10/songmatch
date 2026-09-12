@@ -293,13 +293,6 @@ export default function ScanPage() {
             song<span className="text-[#c8ff3d]">match</span>
           </Link>
 
-          <Link
-            href="/"
-            className="text-sm text-white/40 hover:text-white"
-          >
-            Home
-          </Link>
-
         </header>
 
         <section className="mx-auto max-w-2xl pt-24">

@@ -95,12 +95,6 @@ export default function MatchesPage() {
 
           <div className="flex items-center gap-5">
             <Link
-              href="/dashboard"
-              className="text-sm text-[#b8b8c0] hover:text-white"
-            >
-              Dashboard
-            </Link>
-            <Link
               href="/scan"
               className="rounded-full border border-white/10 px-4 py-2 text-sm text-[#b8b8c0] hover:text-white"
             >

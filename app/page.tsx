@@ -8,20 +8,6 @@ export default function Home() {
           <span className="text-2xl font-black tracking-[-0.06em]">
             song<span className="text-[#c8ff3d]">match</span>
           </span>
-          <div className="flex items-center gap-5">
-            <Link
-              href="/dashboard"
-              className="text-sm text-[#b8b8c0] hover:text-white"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/matches"
-              className="text-sm text-[#b8b8c0] hover:text-white"
-            >
-              My matches
-            </Link>
-          </div>
         </header>
 
         <section className="mx-auto max-w-2xl pt-24 text-center">

@@ -383,20 +383,6 @@ export default function SingAlongPage() {
           <Link href="/" className="text-2xl font-black tracking-[-0.06em]">
             song<span className="text-[#c8ff3d]">match</span>
           </Link>
-          <div className="flex items-center gap-5">
-            <Link
-              href="/dashboard"
-              className="text-sm text-[#b8b8c0] hover:text-white"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/matches"
-              className="text-sm text-[#b8b8c0] hover:text-white"
-            >
-              Matches
-            </Link>
-          </div>
         </header>
 
         <section className="mx-auto max-w-3xl pt-20 text-center">
