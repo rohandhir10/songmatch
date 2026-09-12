@@ -49,12 +49,20 @@ export default function Home() {
           </div>
 
           <div className="mt-6 flex flex-col items-center gap-2">
-            <Link
-              href="/popular"
-              className="inline-block rounded-2xl bg-[#c8ff3d]/15 px-6 py-3 text-sm font-black text-[#c8ff3d] transition hover:-translate-y-0.5"
-            >
-              Sing popular songs →
-            </Link>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/train"
+                className="inline-block rounded-2xl bg-[#c8ff3d] px-6 py-3 text-sm font-black text-black transition hover:-translate-y-0.5"
+              >
+                Train your voice →
+              </Link>
+              <Link
+                href="/popular"
+                className="inline-block rounded-2xl bg-[#c8ff3d]/15 px-6 py-3 text-sm font-black text-[#c8ff3d] transition hover:-translate-y-0.5"
+              >
+                Sing popular songs →
+              </Link>
+            </div>
             <Link
               href="/singalong"
               className="inline-block text-sm font-bold text-[#b8b8c0] hover:text-white hover:underline"

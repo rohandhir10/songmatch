@@ -50,6 +50,7 @@ export default function DashboardPage() {
   function songHref(songId: string): string {
     if (songId.startsWith("file:")) return "/singalong";
     if (songId.startsWith("yt:")) return "/popular";
+    if (songId.startsWith("train:")) return "/train";
     return `/karaoke/${songId}`;
   }
 
