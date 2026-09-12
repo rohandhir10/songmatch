@@ -282,10 +282,11 @@ export default function SingAlongPage() {
       }
       const raw = new Uint8Array(await file.arrayBuffer());
       audioBytes.current = raw;
-      // decodeAudioData needs a copy (it detaches the buffer)
-      const buf = await decodeContext.current.decodeAudioData(
-        raw.buffer.slice(0)
-      );
+      // decodeAudioData needs a fresh ArrayBuffer (it detaches the
+      // buffer, and .buffer may be a SharedArrayBuffer view instead).
+      const copy = new ArrayBuffer(raw.byteLength);
+      new Uint8Array(copy).set(raw);
+      const buf = await decodeContext.current.decodeAudioData(copy);
       const left = buf.getChannelData(0);
       const right =
         buf.numberOfChannels > 1 ? buf.getChannelData(1) : buf.getChannelData(0);
@@ -326,9 +327,9 @@ export default function SingAlongPage() {
     setPreparing(true);
     try {
       const bytes = audioBytes.current;
-      const buf = await decodeContext.current.decodeAudioData(
-        bytes.buffer.slice(0)
-      );
+      const copy = new ArrayBuffer(bytes.byteLength);
+      new Uint8Array(copy).set(bytes);
+      const buf = await decodeContext.current.decodeAudioData(copy);
       const left = buf.getChannelData(0);
       const right =
         buf.numberOfChannels > 1 ? buf.getChannelData(1) : buf.getChannelData(0);
