@@ -8,7 +8,8 @@ import { GENRES, popularSongs, type Genre, type PopularSong } from "@/lib/popula
 import MicCheckGate from "../components/MicCheckGate";
 import LevelPicker from "../components/LevelPicker";
 import LyricsField from "../components/LyricsField";
-import { activeLyric, type LrcSong } from "@/lib/lrc";
+import { activeLyric, parseLrc, type LrcSong } from "@/lib/lrc";
+import { cacheLrc, cachedLrc, fetchLrcText } from "@/lib/lyrics";
 import { arrangeForLevel, type Level } from "@/lib/levels";
 import { scoreSongPerformance } from "@/lib/matching";
 import { monitorBleed } from "@/lib/miccheck";
@@ -53,6 +54,9 @@ export default function PopularPage() {
     text: string;
     next: string | null;
   } | null>(null);
+  const [lyricsState, setLyricsState] = useState<
+    "idle" | "loading" | "ready" | "missing"
+  >("idle");
 
   const micContext = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
@@ -166,6 +170,43 @@ export default function PopularPage() {
         else ctx.lineTo(x, y);
       });
       ctx.stroke();
+    }
+  }
+
+  // Lyrics: user's upload wins; otherwise auto-fetch crowdsourced
+  // synced lyrics once per song (cached). Silent on failure.
+  async function ensureLyrics(
+    s: PopularSong,
+    cacheKey: string,
+    current: LrcSong | null
+  ) {
+    if (current) {
+      setLyricsState("ready");
+      return;
+    }
+    setLyricsState("loading");
+    const hit = cachedLrc(cacheKey);
+    const apply = (text: string) => {
+      try {
+        setLrc(parseLrc(text));
+        setLyricsState("ready");
+      } catch {
+        setLyricsState("missing");
+      }
+    };
+    if (hit) {
+      apply(hit);
+      return;
+    }
+    const text = await fetchLrcText(s.artist, s.title);
+    if (text) {
+      cacheLrc(cacheKey, text);
+      // Don't clobber an upload that landed while fetching.
+      if (!lrcRef.current) apply(text);
+      else setLyricsState("ready");
+    } else {
+      if (!lrcRef.current) setLyricsState("missing");
+      else setLyricsState("ready");
     }
   }
 
@@ -329,10 +370,15 @@ export default function PopularPage() {
     allFrames.current = [];
     setBleedWarn(false);
     setLyric(null);
+    setLrc(null);
+    setLyricsState("idle");
     songTime.current = 0;
     ytPlayer.current = null;
     setNote("—");
     setRunId((r) => r + 1); // restart the video from the top
+    if (s) {
+      void ensureLyrics(s, s.id, null);
+    }
     setPhase("performing");
     detectLoop();
   }
@@ -654,7 +700,25 @@ export default function PopularPage() {
                 />
               </div>
               <div className="mx-auto mt-3 max-w-md">
-                <LyricsField lrc={lrc} onLoad={setLrc} onError={setError} />
+                <LyricsField
+                  lrc={lrc}
+                  onLoad={(songLrc) => {
+                    setLrc(songLrc);
+                    setLyricsState("ready");
+                  }}
+                  onError={setError}
+                />
+                {lyricsState === "loading" && (
+                  <p className="mt-2 text-xs text-[#8a8a94]">
+                    Looking up synced lyrics…
+                  </p>
+                )}
+                {lyricsState === "missing" && !lrc && (
+                  <p className="mt-2 text-xs text-[#8a8a94]">
+                    No synced lyrics found for this one — drop in your
+                    own .lrc above.
+                  </p>
+                )}
               </div>
               {lyric && phase === "performing" && (
                 <div className="mx-auto mt-3 max-w-2xl text-center">
