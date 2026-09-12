@@ -48,12 +48,20 @@ export default function Home() {
             </Link>
           </div>
 
-          <Link
-            href="/singalong"
-            className="mt-6 inline-block text-sm font-bold text-[#c8ff3d] hover:underline"
-          >
-            or sing along to your own music →
-          </Link>
+          <div className="mt-6 flex flex-col items-center gap-2">
+            <Link
+              href="/popular"
+              className="inline-block rounded-2xl bg-[#c8ff3d]/15 px-6 py-3 text-sm font-black text-[#c8ff3d] transition hover:-translate-y-0.5"
+            >
+              Sing popular songs →
+            </Link>
+            <Link
+              href="/singalong"
+              className="inline-block text-sm font-bold text-[#b8b8c0] hover:text-white hover:underline"
+            >
+              or sing along to your own music files
+            </Link>
+          </div>
         </section>
 
         <section aria-label="How it works" className="mx-auto mt-24 max-w-3xl">

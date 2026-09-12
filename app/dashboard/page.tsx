@@ -48,7 +48,9 @@ export default function DashboardPage() {
   const recent = history.slice(0, 8);
 
   function songHref(songId: string): string {
-    return songId.startsWith("file:") ? "/singalong" : `/karaoke/${songId}`;
+    if (songId.startsWith("file:")) return "/singalong";
+    if (songId.startsWith("yt:")) return "/popular";
+    return `/karaoke/${songId}`;
   }
 
   if (!loaded) {
