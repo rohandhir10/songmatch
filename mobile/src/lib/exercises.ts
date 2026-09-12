@@ -1,4 +1,4 @@
-import type { ReferenceContour } from "./contour";
+import type { ReferenceContour } from "./contour.ts";
 
 export type ExerciseNote = {
   midi: number;
