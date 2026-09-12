@@ -1,5 +1,49 @@
 import type { Song } from "./songs";
 import type { VocalProfile } from "./pitch";
+import { frequencyToMidi } from "./pitch";
+
+export type PerformanceScore = {
+  accuracy: number;
+  grade: "S" | "A" | "B" | "C" | "D";
+  framesInside: number;
+  framesTotal: number;
+};
+
+// Scores a performance: full credit for frames sung inside the song's
+// tessitura (where the song mostly lives), half credit inside the outer
+// vocal range, none outside. Honest without a melody timeline — it measures
+// range control, not note-by-note correctness.
+export function scorePerformance(
+  frequencies: number[],
+  song: Song
+): PerformanceScore | null {
+  const frames = frequencies.filter(
+    (f) => Number.isFinite(f) && f > 0
+  );
+  if (frames.length === 0) return null;
+
+  let credit = 0;
+  let inside = 0;
+  for (const f of frames) {
+    const midi = frequencyToMidi(f);
+    if (midi >= song.tessituraLowMidi && midi <= song.tessituraHighMidi) {
+      credit += 1;
+      inside += 1;
+    } else if (midi >= song.vocalLowMidi && midi <= song.vocalHighMidi) {
+      credit += 0.5;
+    }
+  }
+
+  const accuracy = Math.round((credit / frames.length) * 100);
+  const grade =
+    accuracy >= 90 ? "S"
+    : accuracy >= 75 ? "A"
+    : accuracy >= 60 ? "B"
+    : accuracy >= 40 ? "C"
+    : "D";
+
+  return { accuracy, grade, framesInside: inside, framesTotal: frames.length };
+}
 
 export type SongMatch = {
   song: Song;

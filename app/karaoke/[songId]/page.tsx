@@ -1,10 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { songs } from "@/lib/songs";
-import { midiToNote } from "@/lib/pitch";
+import { scorePerformance, type PerformanceScore } from "@/lib/matching";
+import {
+  detectPitch,
+  midiToNote,
+  smoothFrequencies,
+} from "@/lib/pitch";
 
 export default function KaraokePage() {
   const params = useParams();
@@ -17,6 +23,113 @@ export default function KaraokePage() {
   const song = songs.find(
     (item) => item.id === songId
   );
+
+  const [performing, setPerforming] = useState(false);
+  const [note, setNote] = useState("—");
+  const [error, setError] = useState<string | null>(null);
+  const [score, setScore] = useState<PerformanceScore | null>(null);
+
+  const audioContext = useRef<AudioContext | null>(null);
+  const analyser = useRef<AnalyserNode | null>(null);
+  const stream = useRef<MediaStream | null>(null);
+  const animationFrame = useRef<number | null>(null);
+  const frames = useRef<number[]>([]);
+  const recent = useRef<number[]>([]);
+
+  function cleanup() {
+    if (animationFrame.current !== null) {
+      cancelAnimationFrame(animationFrame.current);
+      animationFrame.current = null;
+    }
+    stream.current?.getTracks().forEach((track) => track.stop());
+    stream.current = null;
+    audioContext.current?.close();
+    audioContext.current = null;
+  }
+
+  function detectLoop() {
+    if (!analyser.current || !audioContext.current) return;
+
+    const buffer = new Float32Array(analyser.current.fftSize);
+    analyser.current.getFloatTimeDomainData(buffer);
+
+    const detected = detectPitch(
+      buffer,
+      audioContext.current.sampleRate
+    );
+
+    if (detected >= 70 && detected <= 600) {
+      frames.current.push(detected);
+      recent.current.push(detected);
+      if (recent.current.length > 8) recent.current.shift();
+      const list = smoothFrequencies(recent.current, 5);
+      const smoothed = list[list.length - 1] ?? detected;
+      setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+    }
+
+    animationFrame.current = requestAnimationFrame(detectLoop);
+  }
+
+  async function startPerformance() {
+    if (!song) return;
+    try {
+      const media = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      stream.current = media;
+
+      const AudioContextClass =
+        window.AudioContext ||
+        (
+          window as typeof window & {
+            webkitAudioContext?: typeof AudioContext;
+          }
+        ).webkitAudioContext;
+      if (!AudioContextClass) {
+        throw new Error("Web Audio is not supported in this browser.");
+      }
+
+      const context = new AudioContextClass();
+      audioContext.current = context;
+      const source = context.createMediaStreamSource(media);
+      const node = context.createAnalyser();
+      node.fftSize = 2048;
+      source.connect(node);
+      analyser.current = node;
+
+      frames.current = [];
+      recent.current = [];
+      setScore(null);
+      setError(null);
+      setNote("—");
+      setPerforming(true);
+      detectLoop();
+    } catch {
+      setError(
+        "Microphone access was blocked. Allow mic permission, then try again."
+      );
+    }
+  }
+
+  function stopPerformance() {
+    cleanup();
+    setPerforming(false);
+    if (!song) return;
+    const result = scorePerformance(frames.current, song);
+    if (!result) {
+      setError(
+        "We didn't catch your voice. Get closer to the mic and perform again."
+      );
+      return;
+    }
+    setScore(result);
+  }
+
+  useEffect(() => cleanup, []);
 
   if (!song) {
     return (
@@ -50,6 +163,9 @@ export default function KaraokePage() {
       </main>
     );
   }
+
+  const low = midiToNote(song.tessituraLowMidi);
+  const high = midiToNote(song.tessituraHighMidi);
 
   return (
     <main className="min-h-screen bg-[#070708] text-white">
@@ -85,31 +201,80 @@ export default function KaraokePage() {
           </p>
 
           <p className="mt-4 text-xs text-[#8a8a94]">
-            Key {song.key} · {song.difficulty} ·{" "}
-            {midiToNote(song.vocalLowMidi)}–
-            {midiToNote(song.vocalHighMidi)}
+            Key {song.key} · {song.difficulty} · Hold {low}–{high}
           </p>
 
-          <div className="mt-12 rounded-3xl border border-white/10 bg-white/[0.03] p-10">
-
-            <div className="text-sm font-black tracking-[0.2em] text-[#c8ff3d]">
-              REHEARSAL ROOM
-            </div>
-
-            <p className="mx-auto mt-4 max-w-md leading-7 text-[#b8b8c0]">
-              Live pitch tracking, backing tracks and synced lyrics are
-              being built for this room now. Your match data above is
-              real — the stage just isn&apos;t wired up yet.
+          {error && (
+            <p role="alert" className="mx-auto mt-6 max-w-md rounded-2xl border border-[#ff5c69]/30 bg-[#ff5c69]/10 p-4 text-sm leading-6 text-[#ffb3ba]">
+              {error}
             </p>
+          )}
 
-            <Link
-              href="/scan"
-              className="mt-8 inline-block rounded-2xl border border-white/10 bg-white/[0.05] px-8 py-4 font-bold hover:bg-white/[0.08]"
-            >
-              Rescan my voice
-            </Link>
+          {!performing && !score && (
+            <div className="mx-auto mt-12 max-w-3xl rounded-3xl border border-white/10 bg-white/[0.03] p-10">
+              <p className="mx-auto max-w-md leading-7 text-[#b8b8c0]">
+                Sing {song.title} and we&apos;ll score how much of it you
+                hold inside its comfort zone ({low}–{high}).
+                No backing track yet — your voice is the instrument.
+              </p>
+              <button
+                onClick={startPerformance}
+                className="mt-8 rounded-2xl bg-[#c8ff3d] px-10 py-4 font-black text-black transition hover:-translate-y-1"
+              >
+                Start performance
+              </button>
+            </div>
+          )}
 
-          </div>
+          {performing && (
+            <div className="mx-auto mt-12 max-w-3xl rounded-3xl border border-[#c8ff3d]/25 bg-[#c8ff3d]/[0.04] p-10">
+              <div className="text-sm font-black tracking-[0.2em] text-[#c8ff3d]">
+                PERFORMING
+              </div>
+              <div className="mt-4 text-8xl font-black tracking-[-0.08em] text-balance">
+                {note}
+              </div>
+              <p className="mt-4 text-sm text-[#b8b8c0]">
+                Hold {low}–{high}
+              </p>
+              <button
+                onClick={stopPerformance}
+                className="mt-8 w-full rounded-2xl border border-white/10 bg-white/[0.05] px-6 py-4 font-bold hover:bg-white/[0.08]"
+              >
+                Finish performance
+              </button>
+            </div>
+          )}
+
+          {!performing && score && (
+            <div className="mx-auto mt-12 max-w-3xl rounded-3xl border border-white/10 bg-white/[0.03] p-10">
+              <div className="text-sm font-black tracking-[0.2em] text-[#c8ff3d]">
+                GRADE {score.grade}
+              </div>
+              <div className="mt-4 text-8xl font-black tracking-[-0.08em] tabular-nums">
+                {score.accuracy}
+                <span className="text-4xl text-[#8a8a94]">%</span>
+              </div>
+              <p className="mt-4 text-sm text-[#b8b8c0]">
+                {score.framesInside} of {score.framesTotal} frames inside{" "}
+                {low}–{high}
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <button
+                  onClick={startPerformance}
+                  className="rounded-2xl bg-[#c8ff3d] px-8 py-4 font-black text-black transition hover:-translate-y-1"
+                >
+                  Sing it again
+                </button>
+                <Link
+                  href="/matches"
+                  className="rounded-2xl border border-white/10 bg-white/[0.05] px-8 py-4 font-bold hover:bg-white/[0.08]"
+                >
+                  Try another song
+                </Link>
+              </div>
+            </div>
+          )}
 
         </section>
 

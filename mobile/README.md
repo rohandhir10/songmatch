@@ -15,6 +15,11 @@ Native shell for SongMatch. Pure logic is shared by copy from web (`src/lib/` mi
 | `lib/matching.ts` | `src/lib/matching.ts` | Direct copy |
 | `lib/songs.ts` | `src/lib/songs.ts` | Direct copy for now → move to API next |
 
+> Sync rule: `src/lib/` mirrors `../lib/` by copy, EXCEPT relative imports
+> must end in `.ts` in the mobile copies (Node strip-types test runner
+> needs explicit extensions; Metro/Next resolve both, so web stays
+> extensionless).
+
 ## Run
 
 ```bash
