@@ -46,6 +46,44 @@ export function midiToNote(midi: number): string {
   return `${NOTE_NAMES[noteIndex]}${octave}`;
 }
 
+// Cents deviation from the nearest semitone: +50 = quarter-sharp,
+// -30 = thirty cents flat. Drives the live in-tune needle.
+export function centsOffNearest(frequency: number): number {
+  const midiFloat = 69 + 12 * Math.log2(frequency / 440);
+  return Math.round((midiFloat - Math.round(midiFloat)) * 100);
+}
+
+// % of frames sung within ±35 cents of their chunk median — i.e. how
+// steadily the voice holds pitch vs sliding around. Frames are grouped
+// into ~0.5s chunks (30 frames at 60fps): vibrato oscillates around the
+// chunk median (steady) while slides move through it (unsteady). A
+// centered sliding window can't see slides — its median always equals
+// the local value on linear data.
+// Phrase-score input until melody timelines exist for true target-note
+// scoring.
+export function pitchSteadiness(frequencies: number[]): number | null {
+  const frames = frequencies.filter(
+    (f) => Number.isFinite(f) && f > 0
+  );
+  if (frames.length < 3) return null;
+
+  const CHUNK = 30;
+  let steady = 0;
+  for (let start = 0; start < frames.length; start += CHUNK) {
+    let end = Math.min(start + CHUNK, frames.length);
+    if (frames.length - end < 8 && end < frames.length) {
+      end = frames.length; // fold a tiny tail into the last full chunk
+    }
+    const chunk = [...frames.slice(start, end)].sort((a, b) => a - b);
+    const median = chunk[Math.floor(chunk.length / 2)];
+    for (let i = start; i < end; i++) {
+      if (Math.abs(1200 * Math.log2(frames[i] / median)) <= 35) steady += 1;
+    }
+    if (end === frames.length) break;
+  }
+  return Math.round((steady / frames.length) * 100);
+}
+
 // Trailing median over live pitch frames. The raw per-frame readout jumps on
 // vibrato and single-frame octave pops, which reads as "inaccurate" even when
 // the underlying detector is right — the display should show the stable pitch.

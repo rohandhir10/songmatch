@@ -5,8 +5,10 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   buildVocalProfile,
+  centsOffNearest,
   detectPitch,
   midiToNote,
+  pitchSteadiness,
   smoothFrequencies,
   type VocalProfile,
 } from "@/lib/pitch";
@@ -21,6 +23,8 @@ export default function ScanPage() {
     useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [cents, setCents] = useState<number | null>(null);
+  const [steadiness, setSteadiness] = useState<number | null>(null);
 
   const audioContext =
     useRef<AudioContext | null>(null);
@@ -40,8 +44,11 @@ export default function ScanPage() {
   const recent =
     useRef<number[]>([]);
 
-  const [trace, setTrace] =
-    useState<number[]>([]);
+  const line =
+    useRef<number[]>([]);
+
+  const canvas =
+    useRef<HTMLCanvasElement | null>(null);
 
   const startedAt =
     useRef<number>(0);
@@ -90,7 +97,9 @@ export default function ScanPage() {
 
       samples.current = [];
       recent.current = [];
-      setTrace([]);
+      line.current = [];
+      setCents(null);
+      setSteadiness(null);
       startedAt.current = performance.now();
 
       setProfile(null);
@@ -106,6 +115,57 @@ export default function ScanPage() {
         "Microphone access was blocked. Allow mic permission in your browser, then try again."
       );
     }
+  }
+
+  function drawLine() {
+    const el = canvas.current;
+    if (!el) return;
+    const ctx = el.getContext("2d");
+    if (!ctx) return;
+
+    const W = el.width;
+    const H = el.height;
+    const min = Math.log2(70);
+    const max = Math.log2(600);
+    const yOf = (f: number) =>
+      H - 8 - ((Math.log2(f) - min) / (max - min)) * (H - 16);
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Semitone grid, stronger line on each C
+    for (let midi = 36; midi <= 84; midi++) {
+      const f = 440 * Math.pow(2, (midi - 69) / 12);
+      if (f < 70 || f > 600) continue;
+      const y = yOf(f);
+      const isC = midi % 12 === 0;
+      ctx.strokeStyle = isC
+        ? "rgba(255,255,255,0.16)"
+        : "rgba(255,255,255,0.05)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+      if (isC) {
+        ctx.fillStyle = "rgba(255,255,255,0.28)";
+        ctx.font = "10px system-ui";
+        ctx.fillText(midiToNote(midi), 4, y - 3);
+      }
+    }
+
+    const pts = line.current;
+    if (pts.length < 2) return;
+    ctx.strokeStyle = "#c8ff3d";
+    ctx.lineWidth = 2;
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    pts.forEach((f, i) => {
+      const x = (i / 179) * W;
+      const y = yOf(Math.max(70, Math.min(600, f)));
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
   }
 
   function detectLoop() {
@@ -146,8 +206,11 @@ export default function ScanPage() {
 
       setFrequency(smoothed);
       setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+      setCents(centsOffNearest(smoothed));
 
-      setTrace((prev) => [...prev.slice(-59), smoothed]);
+      line.current.push(smoothed);
+      if (line.current.length > 180) line.current.shift();
+      drawLine();
     }
 
     setElapsed(
@@ -195,6 +258,7 @@ export default function ScanPage() {
       JSON.stringify(result)
     );
 
+    setSteadiness(pitchSteadiness(samples.current));
     setProfile(result);
     setRecording(false);
   }
@@ -297,39 +361,57 @@ export default function ScanPage() {
                   {note}
                 </div>
 
-                <div className="mt-2 text-sm text-white/40">
+                <div className="mt-2 text-sm text-[#b8b8c0]">
                   {frequency
                     ? `${frequency.toFixed(1)} Hz`
                     : "Waiting for pitch..."}
                 </div>
 
+                {cents !== null && (
+                  <div className="mx-auto mt-4 max-w-xs">
+                    <div className="relative h-1.5 overflow-hidden rounded-full bg-white/10">
+                      <div className="absolute top-0 bottom-0 left-1/2 w-px bg-white/40" />
+                      <div
+                        className="absolute top-0 bottom-0 w-1.5 rounded-full"
+                        style={{
+                          left: `calc(${50 + Math.max(-50, Math.min(50, cents))}% - 3px)`,
+                          backgroundColor:
+                            Math.abs(cents) <= 10
+                              ? "#c8ff3d"
+                              : Math.abs(cents) <= 25
+                                ? "#ffc53d"
+                                : "#ff5c69",
+                        }}
+                      />
+                    </div>
+                    <div
+                      className="mt-1.5 text-xs tabular-nums"
+                      style={{
+                        color:
+                          Math.abs(cents) <= 10
+                            ? "#c8ff3d"
+                            : Math.abs(cents) <= 25
+                              ? "#ffc53d"
+                              : "#ff5c69",
+                      }}
+                    >
+                      {cents === 0
+                        ? "in tune"
+                        : `${cents > 0 ? "+" : ""}${cents} cents ${cents > 0 ? "sharp" : "flat"}`}
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-3 text-xs text-white/25">
                   {elapsed.toFixed(1)} seconds · {samples.current.length} pitch frames
                 </div>
 
-                {trace.length > 1 && (
-                  <svg
-                    viewBox="0 0 60 24"
-                    preserveAspectRatio="none"
-                    className="mx-auto mt-4 h-16 w-full max-w-xs"
-                  >
-                    <polyline
-                      fill="none"
-                      stroke="#c8ff3d"
-                      strokeWidth="1.5"
-                      points={trace
-                        .map((f, i) => {
-                          const y =
-                            22 -
-                            ((Math.log2(f) - Math.log2(70)) /
-                              (Math.log2(600) - Math.log2(70))) *
-                              20;
-                          return `${(i / 59) * 60},${y.toFixed(1)}`;
-                        })
-                        .join(" ")}
-                    />
-                  </svg>
-                )}
+                <canvas
+                  ref={canvas}
+                  width={600}
+                  height={160}
+                  className="mx-auto mt-4 h-40 w-full max-w-md rounded-2xl border border-white/10 bg-black/40"
+                />
 
                 <button
                   onClick={stopScan}
@@ -358,7 +440,7 @@ export default function ScanPage() {
 
                 </div>
 
-                <div className="mt-8 grid gap-3 md:grid-cols-3">
+                <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
 
                   <Stat
                     label="CENTER PITCH"
@@ -378,6 +460,13 @@ export default function ScanPage() {
                       profile.maxMidi -
                         profile.minMidi
                     )} semitones`}
+                  />
+
+                  <Stat
+                    label="PITCH STEADINESS"
+                    value={
+                      steadiness === null ? "—" : `${steadiness}%`
+                    }
                   />
 
                 </div>
