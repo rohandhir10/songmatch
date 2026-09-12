@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Expo / EAS
+.expo/
+dist/
+pc-api-key.json
+*.jks
+*.keystore
+
+# Env & secrets
+.env
+.env*.local
+
+# OS / editor
+.DS_Store
+*.pem
+
+# Legacy prototype, not part of the build
+index.html
