@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import MicCheckGate from "../components/MicCheckGate";
 import { monitorBleed } from "@/lib/miccheck";
 import { activeLyric, parseLrc, type LrcSong } from "@/lib/lrc";
+import { reduceVocals } from "@/lib/karaokeMix";
+import { encodeWavPcm16 } from "@/lib/wav";
 import {
   extractContourAsync,
   scoreAgainstContour,
@@ -47,9 +49,14 @@ export default function SingAlongPage() {
     text: string;
     next: string | null;
   } | null>(null);
+  const [trackMode, setTrackMode] = useState<"original" | "karaoke">("original");
+  const [karaokeUrl, setKaraokeUrl] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
 
   const audio = useRef<HTMLAudioElement | null>(null);
   const objectUrl = useRef<string | null>(null);
+  const karaokeObjectUrl = useRef<string | null>(null);
+  const audioBytes = useRef<Uint8Array | null>(null);
   const decodeContext = useRef<AudioContext | null>(null);
 
   const micContext = useRef<AudioContext | null>(null);
@@ -240,6 +247,12 @@ export default function SingAlongPage() {
     setScore(null);
     setLrc(null);
     setLyric(null);
+    setTrackMode("original");
+    setKaraokeUrl(null);
+    if (karaokeObjectUrl.current) {
+      URL.revokeObjectURL(karaokeObjectUrl.current);
+      karaokeObjectUrl.current = null;
+    }
 
     const cacheKey = `songmatch-contour:${file.name}:${file.size}:${file.lastModified}`;
     try {
@@ -268,8 +281,11 @@ export default function SingAlongPage() {
         decodeContext.current = new AudioContext();
       }
       const raw = new Uint8Array(await file.arrayBuffer());
+      audioBytes.current = raw;
       // decodeAudioData needs a copy (it detaches the buffer)
-      const buf = await decodeContext.current.decodeAudioData(raw.buffer);
+      const buf = await decodeContext.current.decodeAudioData(
+        raw.buffer.slice(0)
+      );
       const left = buf.getChannelData(0);
       const right =
         buf.numberOfChannels > 1 ? buf.getChannelData(1) : buf.getChannelData(0);
@@ -301,6 +317,34 @@ export default function SingAlongPage() {
           ? e.message
           : "Couldn't read that file. Try MP3, M4A, WAV or OGG."
       );
+    }
+  }
+
+  async function buildKaraokeMix(): Promise<string | null> {
+    if (karaokeObjectUrl.current) return karaokeObjectUrl.current;
+    if (!audioBytes.current || !decodeContext.current) return null;
+    setPreparing(true);
+    try {
+      const bytes = audioBytes.current;
+      const buf = await decodeContext.current.decodeAudioData(
+        bytes.buffer.slice(0)
+      );
+      const left = buf.getChannelData(0);
+      const right =
+        buf.numberOfChannels > 1 ? buf.getChannelData(1) : buf.getChannelData(0);
+      const backing = reduceVocals(left, right);
+      const wav = encodeWavPcm16(backing, buf.sampleRate);
+      const url = URL.createObjectURL(
+        new Blob([wav as unknown as BlobPart], { type: "audio/wav" })
+      );
+      karaokeObjectUrl.current = url;
+      setKaraokeUrl(url);
+      return url;
+    } catch {
+      setError("Couldn't build the karaoke mix from this file.");
+      return null;
+    } finally {
+      setPreparing(false);
     }
   }
 
@@ -431,6 +475,10 @@ export default function SingAlongPage() {
       micContext.current?.close();
       decodeContext.current?.close();
       if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
+      if (karaokeObjectUrl.current) {
+        URL.revokeObjectURL(karaokeObjectUrl.current);
+        karaokeObjectUrl.current = null;
+      }
     },
     []
   );
@@ -514,6 +562,43 @@ export default function SingAlongPage() {
               >
                 Sing it →
               </button>
+              <div
+                role="group"
+                aria-label="Backing track"
+                className="mx-auto mt-3 inline-flex rounded-full border border-white/10 bg-white/[0.04] p-1"
+              >
+                <button
+                  onClick={() => setTrackMode("original")}
+                  aria-pressed={trackMode === "original"}
+                  className={
+                    trackMode === "original"
+                      ? "rounded-full bg-[#c8ff3d] px-4 py-1.5 text-xs font-black text-black"
+                      : "rounded-full px-4 py-1.5 text-xs font-bold text-[#b8b8c0] hover:text-white"
+                  }
+                >
+                  Original
+                </button>
+                <button
+                  onClick={async () => {
+                    if (trackMode === "karaoke") return;
+                    const url = await buildKaraokeMix();
+                    if (url) setTrackMode("karaoke");
+                  }}
+                  aria-pressed={trackMode === "karaoke"}
+                  disabled={preparing}
+                  className={
+                    trackMode === "karaoke"
+                      ? "rounded-full bg-[#c8ff3d] px-4 py-1.5 text-xs font-black text-black"
+                      : "rounded-full px-4 py-1.5 text-xs font-bold text-[#b8b8c0] hover:text-white disabled:opacity-50"
+                  }
+                >
+                  {preparing ? "Mixing…" : "Karaoke mix"}
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] leading-5 text-[#8a8a94]">
+                Karaoke mix drops the centered vocal out of your file —
+                quality depends on the mix.
+              </p>
               <label className="mt-3 block w-full cursor-pointer rounded-2xl border border-dashed border-white/20 bg-white/[0.02] px-6 py-3.5 text-center text-sm font-bold text-[#b8b8c0] hover:border-[#c8ff3d]/50 hover:text-white">
                 {lrc ? `Lyrics loaded (${lrc.lines.length} lines) — replace?` : "Add lyrics (.lrc, optional)"}
                 <input
@@ -675,7 +760,11 @@ export default function SingAlongPage() {
 
           <audio
             ref={audio}
-            src={objectUrl.current ?? undefined}
+            src={
+              trackMode === "karaoke" && karaokeUrl
+                ? karaokeUrl
+                : (objectUrl.current ?? undefined)
+            }
             preload="auto"
           />
         </section>
