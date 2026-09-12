@@ -46,6 +46,24 @@ export function midiToNote(midi: number): string {
   return `${NOTE_NAMES[noteIndex]}${octave}`;
 }
 
+// Trailing median over live pitch frames. The raw per-frame readout jumps on
+// vibrato and single-frame octave pops, which reads as "inaccurate" even when
+// the underlying detector is right — the display should show the stable pitch.
+export function smoothFrequencies(
+  frames: number[],
+  windowSize = 5
+): number[] {
+  if (frames.length === 0) return [];
+  const size = Math.max(1, Math.floor(windowSize));
+  const out: number[] = [];
+  for (let i = 0; i < frames.length; i++) {
+    const start = Math.max(0, i - size + 1);
+    const window = [...frames.slice(start, i + 1)].sort((a, b) => a - b);
+    out.push(window[Math.floor(window.length / 2)]);
+  }
+  return out;
+}
+
 export function detectPitch(
   buffer: Float32Array,
   sampleRate: number
@@ -160,21 +178,19 @@ function classifyVoice(
   minMidi: number,
   maxMidi: number
 ): string {
-  const range = maxMidi - minMidi;
+  void minMidi;
+  void maxMidi;
+  // Full ladder on the sung center — the old bands topped out at a
+  // catch-all "Higher Voice", so altos, mezzos and sopranos all got the
+  // same unhelpful label.
+  const centerMidi = frequencyToMidi(centerFrequency);
 
-  if (centerFrequency < 115 && range >= 18) {
-    return "Bass / Baritone";
-  }
-
-  if (centerFrequency < 145) {
-    return "Baritone";
-  }
-
-  if (centerFrequency < 185) {
-    return "Tenor";
-  }
-
-  return "Higher Voice";
+  if (centerMidi < 47) return "Bass";
+  if (centerMidi < 52) return "Baritone";
+  if (centerMidi < 57) return "Tenor";
+  if (centerMidi < 62) return "Alto";
+  if (centerMidi < 67) return "Mezzo-Soprano";
+  return "Soprano";
 }
 
 export function buildVocalProfile(

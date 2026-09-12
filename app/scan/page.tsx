@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   buildVocalProfile,
   detectPitch,
+  midiToNote,
+  smoothFrequencies,
   type VocalProfile,
 } from "@/lib/pitch";
 
@@ -33,6 +35,12 @@ export default function ScanPage() {
 
   const samples =
     useRef<number[]>([]);
+
+  const recent =
+    useRef<number[]>([]);
+
+  const [trace, setTrace] =
+    useState<number[]>([]);
 
   const startedAt =
     useRef<number>(0);
@@ -80,6 +88,8 @@ export default function ScanPage() {
       analyser.current = node;
 
       samples.current = [];
+      recent.current = [];
+      setTrace([]);
       startedAt.current = performance.now();
 
       setProfile(null);
@@ -122,41 +132,20 @@ export default function ScanPage() {
     if (detected >= 70 && detected <= 600) {
       samples.current.push(detected);
 
-      setFrequency(detected);
+      // Display the trailing median, not the raw frame — vibrato and
+      // single-frame pops make the raw readout flicker and look wrong
+      // even when detection itself is accurate.
+      recent.current.push(detected);
+      if (recent.current.length > 8) {
+        recent.current.shift();
+      }
+      const smoothedList = smoothFrequencies(recent.current, 5);
+      const smoothed = smoothedList[smoothedList.length - 1] ?? detected;
 
-      const midi =
-        69 +
-        12 *
-          Math.log2(
-            detected / 440
-          );
+      setFrequency(smoothed);
+      setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
 
-      const noteNumber = Math.round(midi);
-
-      const names = [
-        "C",
-        "C#",
-        "D",
-        "D#",
-        "E",
-        "F",
-        "F#",
-        "G",
-        "G#",
-        "A",
-        "A#",
-        "B",
-      ];
-
-      const name =
-        names[
-          ((noteNumber % 12) + 12) % 12
-        ];
-
-      const octave =
-        Math.floor(noteNumber / 12) - 1;
-
-      setNote(`${name}${octave}`);
+      setTrace((prev) => [...prev.slice(-59), smoothed]);
     }
 
     setElapsed(
@@ -295,8 +284,32 @@ export default function ScanPage() {
                 </div>
 
                 <div className="mt-3 text-xs text-white/25">
-                  {elapsed.toFixed(1)} seconds
+                  {elapsed.toFixed(1)} seconds · {samples.current.length} pitch frames
                 </div>
+
+                {trace.length > 1 && (
+                  <svg
+                    viewBox="0 0 60 24"
+                    preserveAspectRatio="none"
+                    className="mx-auto mt-4 h-16 w-full max-w-xs"
+                  >
+                    <polyline
+                      fill="none"
+                      stroke="#c8ff3d"
+                      strokeWidth="1.5"
+                      points={trace
+                        .map((f, i) => {
+                          const y =
+                            22 -
+                            ((Math.log2(f) - Math.log2(70)) /
+                              (Math.log2(600) - Math.log2(70))) *
+                              20;
+                          return `${(i / 59) * 60},${y.toFixed(1)}`;
+                        })
+                        .join(" ")}
+                    />
+                  </svg>
+                )}
 
                 <button
                   onClick={stopScan}
@@ -355,6 +368,9 @@ export default function ScanPage() {
 
                 <div className="mt-6 rounded-2xl border border-[#c8ff3d]/20 bg-[#c8ff3d]/5 p-5 text-sm leading-6 text-white/60">
                   Your voice profile is ready. SongMatch can now compare it against the song catalogue and calculate which songs should fit you best.
+                  <span className="mt-1 block text-white/40">
+                    Captured {profile.sampleCount} usable pitch frames.
+                  </span>
                 </div>
 
                 <Link
