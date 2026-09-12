@@ -6,6 +6,8 @@ import Link from "next/link";
 import { embedUrl, parseYouTubeId } from "@/lib/youtube";
 import { GENRES, popularSongs, type Genre, type PopularSong } from "@/lib/popular";
 import MicCheckGate from "../components/MicCheckGate";
+import LevelPicker from "../components/LevelPicker";
+import { arrangeForLevel, type Level } from "@/lib/levels";
 import { scoreSongPerformance } from "@/lib/matching";
 import { monitorBleed } from "@/lib/miccheck";
 import {
@@ -43,6 +45,7 @@ export default function PopularPage() {
   const [score, setScore] = useState<ScoreView | null>(null);
   const [runId, setRunId] = useState(0);
   const [bleedWarn, setBleedWarn] = useState(false);
+  const [level, setLevel] = useState<Level>("Standard");
 
   const micContext = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
@@ -56,6 +59,8 @@ export default function PopularPage() {
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const songRef = useRef<PopularSong | null>(null);
   songRef.current = song;
+  const arrangedRef = useRef<PopularSong | null>(null);
+  arrangedRef.current = song ? { ...song, ...arrangeForLevel(song, level) } : null;
 
   const counts = useMemo(() => {
     const m = new Map<Genre, number>();
@@ -127,8 +132,8 @@ export default function PopularPage() {
       }
     }
 
-    // Comfort-zone band for database songs
-    const s = songRef.current;
+    // Comfort-zone band for database songs (level arrangement)
+    const s = arrangedRef.current;
     if (s) {
       const yTop = yOf(440 * Math.pow(2, (s.tessituraHighMidi - 69) / 12));
       const yBot = yOf(440 * Math.pow(2, (s.tessituraLowMidi - 69) / 12));
@@ -278,12 +283,13 @@ export default function PopularPage() {
     let view: ScoreView | null = null;
 
     if (s && frames.current.length >= 3) {
-      const r = scoreSongPerformance(frames.current, s);
+      const arranged = arrangeForLevel(s, level);
+      const r = scoreSongPerformance(frames.current, arranged);
       if (r) {
         view = {
           accuracy: r.accuracy,
           grade: r.grade,
-          detail: `Range hold ${r.rangeHold}% · vocal control ${r.steadiness}% across ${r.framesTotal} frames. Belts outside your zone still count when they're steady.`,
+          detail: `${level} arrangement · range hold ${r.rangeHold}% · vocal control ${r.steadiness}% across ${r.framesTotal} frames. Belts outside your zone still count when they're steady.`,
         };
       }
     } else if (steadiness !== null && frames.current.length >= 3) {
@@ -315,6 +321,7 @@ export default function PopularPage() {
       framesInside: frames.current.length,
       framesTotal: frames.current.length,
       at: Date.now(),
+      level: s ? level : undefined,
     };
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
@@ -549,6 +556,11 @@ export default function PopularPage() {
                   </span>
                 </div>
               )}
+              {phase === "performing" && (
+                <div className="mt-4 flex justify-center">
+                  <LevelPicker level={level} onChange={setLevel} />
+                </div>
+              )}
               <div className="mx-auto mt-4 aspect-video w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-black">
                 <iframe
                   key={`${videoId}-${runId}`}
@@ -595,9 +607,9 @@ export default function PopularPage() {
                   <>
                     {"  ·  "}
                     <span className="text-[#c8ff3d]">
-                      shaded band = your comfort zone (
-                      {midiToNote(song.tessituraLowMidi)}–
-                      {midiToNote(song.tessituraHighMidi)}) — the song will
+                      shaded band = your {level} zone (
+                      {midiToNote(arrangeForLevel(song, level).tessituraLowMidi)}–
+                      {midiToNote(arrangeForLevel(song, level).tessituraHighMidi)}) — the song will
                       take you outside it, that&apos;s normal
                     </span>
                   </>

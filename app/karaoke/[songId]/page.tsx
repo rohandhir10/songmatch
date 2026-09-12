@@ -6,6 +6,8 @@ import { useParams } from "next/navigation";
 
 import { songs } from "@/lib/songs";
 import { scoreSongPerformance, type SongPerformance } from "@/lib/matching";
+import { arrangeForLevel, type Level } from "@/lib/levels";
+import LevelPicker from "../components/LevelPicker";
 import {
   HISTORY_KEY,
   recordPerformance,
@@ -34,6 +36,7 @@ export default function KaraokePage() {
   const [note, setNote] = useState("—");
   const [error, setError] = useState<string | null>(null);
   const [score, setScore] = useState<SongPerformance | null>(null);
+  const [level, setLevel] = useState<Level>("Standard");
 
   const audioContext = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
@@ -130,9 +133,10 @@ export default function KaraokePage() {
       setNote("—");
       setPerforming(true);
 
-      // Soft reference drone on the floor of the comfort zone — an
+      // Soft reference drone on the floor of the level zone — an
       // a cappella anchor so the voice has something to tune against.
-      const droneFreq = 440 * Math.pow(2, (song.tessituraLowMidi - 69) / 12);
+      const arranged = arrangeForLevel(song, level);
+      const droneFreq = 440 * Math.pow(2, (arranged.tessituraLowMidi - 69) / 12);
       const droneOsc = context.createOscillator();
       droneOsc.type = "sine";
       droneOsc.frequency.value = droneFreq;
@@ -155,7 +159,10 @@ export default function KaraokePage() {
     cleanup();
     setPerforming(false);
     if (!song) return;
-    const result = scoreSongPerformance(frames.current, song);
+    const result = scoreSongPerformance(
+      frames.current,
+      arrangeForLevel(song, level)
+    );
     if (!result) {
       setError(
         "We didn't catch your voice. Get closer to the mic and perform again."
@@ -170,6 +177,7 @@ export default function KaraokePage() {
       framesInside: result.rangeHold,
       framesTotal: result.framesTotal,
       at: Date.now(),
+      level,
     };
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
@@ -284,14 +292,15 @@ export default function KaraokePage() {
 
           {performing && (
             <div className="mx-auto mt-12 max-w-3xl rounded-3xl border border-[#c8ff3d]/25 bg-[#c8ff3d]/[0.04] p-10">
-              <div className="text-sm font-black tracking-[0.2em] text-[#c8ff3d]">
-                PERFORMING
+              <div className="flex justify-center">
+                <LevelPicker level={level} onChange={setLevel} />
               </div>
               <div className="mt-4 text-8xl font-black tracking-[-0.08em] text-balance">
                 {note}
               </div>
               <p className="mt-4 text-sm text-[#b8b8c0]">
-                Home base {low}–{high} · belts welcome · drone playing
+                Home base {midiToNote(arrangeForLevel(song, level).tessituraLowMidi)}–
+                {midiToNote(arrangeForLevel(song, level).tessituraHighMidi)} · belts welcome · drone playing
                 your floor note
               </p>
               <button
@@ -313,7 +322,7 @@ export default function KaraokePage() {
                 <span className="text-4xl text-[#8a8a94]">%</span>
               </div>
               <p className="mt-4 text-sm text-[#b8b8c0]">
-                Range hold {score.framesInside}% · vocal control counted
+                {score.level ?? level} arrangement · range hold {score.framesInside}% · vocal control counted
                 in — belts outside your zone score when they&apos;re steady
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">

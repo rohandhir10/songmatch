@@ -212,6 +212,11 @@ export default function DashboardPage() {
                     <span className="shrink-0 text-sm text-[#8a8a94] tabular-nums">
                       {e.accuracy}%
                     </span>
+                    {e.level && (
+                      <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold text-[#b8b8c0]">
+                        {e.level}
+                      </span>
+                    )}
                     <span className="hidden w-24 shrink-0 text-right text-xs text-[#8a8a94] sm:block">
                       {new Date(e.at).toLocaleDateString(undefined, {
                         month: "short",
