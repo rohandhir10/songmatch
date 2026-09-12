@@ -516,10 +516,10 @@ export default function SingAlongPage() {
                     GRADE {score.grade}
                   </div>
                   <div className="mt-2 text-6xl font-black tabular-nums">
-                    {score.meanAbsCents}
-                    <span className="text-2xl text-[#8a8a94]">¢ off</span>
+                    {Math.max(0, 100 - Math.round(score.meanAbsCents))}
+                    <span className="text-2xl text-[#8a8a94]">%</span>
                   </div>
-                  <p className="mt-3 text-sm text-[#b8b8c0]">
+                  <p className="mt-3 text-sm leading-6 text-[#b8b8c0]">
                     Average {score.meanAbsCents} cents from the original
                     across {score.framesScored} scored frames
                   </p>

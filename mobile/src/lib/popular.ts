@@ -17,6 +17,9 @@ export type PopularSong = Song & {
   // copyrightable expression — no licensed content lives here.
   rangeEstimate: boolean;
   genre: Genre;
+  // Verified official YouTube video: one-tap Sing. Absent = paste-link
+  // fallback. Only IDs confirmed against YouTube itself belong here.
+  videoId?: string;
 };
 
 const estimate = (
@@ -50,6 +53,16 @@ const estimate = (
 // voice fights distortion, screams, mumble delivery or an EDM wall —
 // the mic, the detector and any future extraction all need the singer
 // audible and alone in the middle.
+// Verified-ID attach: only YouTube IDs confirmed against YouTube itself.
+function withVideo(
+  list: PopularSong[],
+  ids: Record<string, string>
+): PopularSong[] {
+  return list.map((s) =>
+    ids[s.id] ? { ...s, videoId: ids[s.id] } : s
+  );
+}
+
 const shelf: PopularSong[] = [
   // ——— Pop ———
   estimate("hello", "Hello", "Adele", "F", 53, 74, "Hard", "Pop"),
@@ -72,6 +85,7 @@ const shelf: PopularSong[] = [
   estimate("grenade", "Grenade", "Bruno Mars", "D", 50, 72, "Hard", "Pop"),
   estimate("thinking-out-loud", "Thinking Out Loud", "Ed Sheeran", "G", 48, 69, "Medium", "Pop"),
   estimate("shivers", "Shivers", "Ed Sheeran", "B", 52, 71, "Medium", "Pop"),
+  estimate("shape-of-you", "Shape of You", "Ed Sheeran", "C#", 47, 69, "Medium", "Pop"),
   estimate("bad-habits", "Bad Habits", "Ed Sheeran", "B", 54, 71, "Medium", "Pop"),
   estimate("let-her-go", "Let Her Go", "Passenger", "G", 55, 71, "Medium", "Pop"),
   estimate("im-yours", "I'm Yours", "Jason Mraz", "B", 50, 67, "Easy", "Pop"),
@@ -80,7 +94,6 @@ const shelf: PopularSong[] = [
   estimate("dance-monkey", "Dance Monkey", "Tones and I", "F#", 57, 74, "Hard", "Pop"),
   estimate("shallow", "Shallow", "Lady Gaga & Bradley Cooper", "G", 43, 71, "Medium", "Pop"),
   estimate("always-remember-us", "Always Remember Us This Way", "Lady Gaga", "A", 52, 72, "Medium", "Pop"),
-  estimate("million-reasons", "Million Reasons", "Lady Gaga", "C", 50, 69, "Easy", "Pop"),
   estimate("poker-face", "Poker Face", "Lady Gaga", "G", 52, 71, "Medium", "Pop"),
 
   // ——— Rock (melodic, vocal-forward) ———
@@ -97,6 +110,7 @@ const shelf: PopularSong[] = [
   estimate("creep", "Creep", "Radiohead", "G", 50, 74, "Hard", "Rock"),
   estimate("hallelujah", "Hallelujah", "Jeff Buckley", "C", 52, 72, "Medium", "Rock"),
   estimate("bohemian-rhapsody", "Bohemian Rhapsody", "Queen", "Bb", 47, 77, "Hard", "Rock"),
+  estimate("believer", "Believer", "Imagine Dragons", "Bb", 45, 69, "Medium", "Rock"),
   estimate("love-of-my-life", "Love of My Life", "Queen", "C", 50, 69, "Easy", "Rock"),
   estimate("hotel-california", "Hotel California", "Eagles", "B", 48, 69, "Easy", "Rock"),
   estimate("zombie", "Zombie", "The Cranberries", "E", 52, 72, "Hard", "Rock"),
@@ -110,7 +124,7 @@ const shelf: PopularSong[] = [
   estimate("respect", "Respect", "Aretha Franklin", "C", 52, 72, "Hard", "Soul"),
   estimate("natural-woman", "(You Make Me Feel Like) A Natural Woman", "Aretha Franklin", "A", 52, 70, "Medium", "Soul"),
   estimate("i-will-always-love-you", "I Will Always Love You", "Whitney Houston", "A", 50, 76, "Hard", "Soul"),
-  estimate("greatest-love-of-all", "Greatest Love of All", "Whitney Houston", "Ab", 52, 74, "Hard", "Soul"),
+  estimate("rolling-in-the-deep", "Rolling in the Deep", "Adele", "C", 50, 74, "Hard", "Soul"),
   estimate("halo", "Halo", "Beyoncé", "A", 52, 72, "Hard", "Soul"),
   estimate("fallin", "Fallin'", "Alicia Keys", "E", 50, 69, "Easy", "Soul"),
   estimate("if-i-aint-got-you", "If I Ain't Got You", "Alicia Keys", "G", 48, 69, "Easy", "Soul"),
@@ -143,6 +157,7 @@ const shelf: PopularSong[] = [
   estimate("vivir-mi-vida", "Vivir Mi Vida", "Marc Anthony", "G", 50, 72, "Medium", "Latin"),
   estimate("senorita", "Señorita", "Shawn Mendes & Camila Cabello", "A", 52, 71, "Medium", "Latin"),
   estimate("havana", "Havana", "Camila Cabello", "G", 57, 72, "Medium", "Latin"),
+  estimate("waka-waka", "Waka Waka (Esto es África)", "Shakira", "D", 55, 72, "Medium", "Latin"),
 
   // ——— Disney ———
   estimate("let-it-go", "Let It Go", "Idina Menzel", "Ab", 53, 75, "Hard", "Disney"),
@@ -155,9 +170,7 @@ const shelf: PopularSong[] = [
   estimate("my-way", "My Way", "Frank Sinatra", "D", 50, 69, "Medium", "Classics"),
   estimate("cant-help-falling", "Can't Help Falling in Love", "Elvis Presley", "D", 48, 65, "Easy", "Classics"),
   estimate("sweet-caroline", "Sweet Caroline", "Neil Diamond", "B", 48, 64, "Easy", "Classics"),
-  estimate("piano-man", "Piano Man", "Billy Joel", "C", 52, 69, "Easy", "Classics"),
   estimate("with-or-without-you", "With or Without You", "U2", "D", 50, 68, "Easy", "Classics"),
-  estimate("one-u2", "One", "U2", "A", 48, 67, "Easy", "Classics"),
 ];
 
 export const GENRES: Genre[] = [
@@ -172,21 +185,38 @@ export const GENRES: Genre[] = [
 ];
 
 export const popularSongs: PopularSong[] = [
-  // Our own catalogue data first — exact, not estimates. Genre by feel.
-  ...songs.map((s, i): PopularSong => ({
-    ...s,
-    rangeEstimate: false,
-    genre: ([
-      "Pop",
-      "Pop",
-      "Soul",
-      "Soul",
-      "Hindi",
-      "Pop",
-      "Soul",
-      "Soul",
-    ] as Genre[])[i] ?? "Pop",
-  })),
+  ...withVideo(
+    [
+      // Our own catalogue data first — exact, not estimates. Genre by feel.
+      ...songs.map((s, i): PopularSong => ({
+        ...s,
+        rangeEstimate: false,
+        genre: ([
+          "Pop",
+          "Pop",
+          "Soul",
+          "Soul",
+          "Hindi",
+          "Pop",
+          "Soul",
+          "Soul",
+        ] as Genre[])[i] ?? "Pop",
+      })),
 
-  ...shelf,
+      ...shelf,
+    ],
+    {
+      despacito: "kJQP7kiw5Fk",
+      "shape-of-you": "JGwWNGJdvx8",
+      perfect: "2Vv-BfVoq4g",
+      "thinking-out-loud": "lp-EO5I60KA",
+      believer: "7wtfhZwyrcc",
+      hello: "YQHsXMglC9A",
+      "rolling-in-the-deep": "rYEDA3JcQqw",
+      "bohemian-rhapsody": "fJ9rUzIMcZQ",
+      shallow: "bo_efYhYU2A",
+      "waka-waka": "pRpeEdMmmQ0",
+      "hotel-california": "5wDfiCDoHy4",
+    }
+  ),
 ];

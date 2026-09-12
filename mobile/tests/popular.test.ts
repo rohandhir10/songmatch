@@ -85,4 +85,15 @@ describe("popularSongs database", () => {
       assert.ok(n >= 3, `${g} has only ${n}`);
     }
   });
+
+  it("ships verified one-tap videos in valid ID format", () => {
+    const withIds = popularSongs.filter((s) => s.videoId !== undefined);
+    assert.ok(withIds.length >= 10, `only ${withIds.length} one-tap songs`);
+    for (const s of withIds) {
+      assert.ok(
+        /^[A-Za-z0-9_-]{11}$/.test(s.videoId!),
+        `${s.id}: bad video id`
+      );
+    }
+  });
 });

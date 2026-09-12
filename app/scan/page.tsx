@@ -467,7 +467,7 @@ export default function ScanPage() {
                 <div className="mt-6 rounded-2xl border border-[#c8ff3d]/20 bg-[#c8ff3d]/5 p-5 text-sm leading-6 text-white/60">
                   Your voice profile is ready. SongMatch can now compare it against the song catalogue and calculate which songs should fit you best.
                   <span className="mt-1 block text-white/40">
-                    Captured {profile.sampleCount} usable pitch frames.
+                    We heard about {Math.max(1, Math.round(profile.sampleCount / 60))} seconds of steady singing.
                   </span>
                 </div>
 
@@ -477,6 +477,13 @@ export default function ScanPage() {
                 >
                   Find my songs →
                 </Link>
+
+                <button
+                  onClick={startScan}
+                  className="mt-3 block w-full rounded-2xl border border-white/10 bg-white/[0.05] px-6 py-3 text-sm font-bold hover:bg-white/[0.08]"
+                >
+                  Scan again
+                </button>
 
               </div>
             )}

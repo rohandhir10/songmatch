@@ -40,12 +40,24 @@ export default function KaraokePage() {
   const animationFrame = useRef<number | null>(null);
   const frames = useRef<number[]>([]);
   const recent = useRef<number[]>([]);
+  const drone = useRef<OscillatorNode | null>(null);
+
+  function stopDrone() {
+    try {
+      drone.current?.stop();
+    } catch {
+      // Already stopped.
+    }
+    drone.current?.disconnect();
+    drone.current = null;
+  }
 
   function cleanup() {
     if (animationFrame.current !== null) {
       cancelAnimationFrame(animationFrame.current);
       animationFrame.current = null;
     }
+    stopDrone();
     stream.current?.getTracks().forEach((track) => track.stop());
     stream.current = null;
     audioContext.current?.close();
@@ -112,6 +124,20 @@ export default function KaraokePage() {
       setError(null);
       setNote("—");
       setPerforming(true);
+
+      // Soft reference drone on the floor of the comfort zone — an
+      // a cappella anchor so the voice has something to tune against.
+      const droneFreq = 440 * Math.pow(2, (song.tessituraLowMidi - 69) / 12);
+      const droneOsc = context.createOscillator();
+      droneOsc.type = "sine";
+      droneOsc.frequency.value = droneFreq;
+      const droneGain = context.createGain();
+      droneGain.gain.value = 0.04;
+      droneOsc.connect(droneGain);
+      droneGain.connect(context.destination);
+      droneOsc.start();
+      drone.current = droneOsc;
+
       detectLoop();
     } catch {
       setError(
@@ -260,7 +286,7 @@ export default function KaraokePage() {
                 {note}
               </div>
               <p className="mt-4 text-sm text-[#b8b8c0]">
-                Hold {low}–{high}
+                Hold {low}–{high} · soft drone playing your floor note
               </p>
               <button
                 onClick={stopPerformance}

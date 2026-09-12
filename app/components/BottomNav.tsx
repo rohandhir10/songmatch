@@ -29,6 +29,25 @@ const TABS = [
 export default function BottomNav() {
   const pathname = usePathname();
 
+  // Rooms outside the tabs light up their nearest tab so users never
+  // lose orientation: flows live under Home, everything sung under Songs.
+  const tabFor = (path: string): string => {
+    if (path === "/") return "/";
+    if (path.startsWith("/train")) return "/train";
+    if (path.startsWith("/dashboard")) return "/dashboard";
+    if (
+      path.startsWith("/popular") ||
+      path.startsWith("/matches") ||
+      path.startsWith("/karaoke") ||
+      path.startsWith("/singalong")
+    ) {
+      return "/popular";
+    }
+    if (path.startsWith("/scan")) return "/";
+    return path;
+  };
+  const current = tabFor(pathname);
+
   return (
     <nav
       aria-label="Primary"
@@ -37,10 +56,7 @@ export default function BottomNav() {
     >
       <div className="mx-auto grid max-w-md grid-cols-4">
         {TABS.map((tab) => {
-          const active =
-            tab.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(tab.href);
+          const active = current === tab.href;
           return (
             <Link
               key={tab.href}

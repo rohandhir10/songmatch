@@ -433,26 +433,37 @@ export default function PopularPage() {
                       {midiToNote(s.vocalHighMidi)} · {s.difficulty}
                     </div>
                     <div className="mt-4 flex gap-2">
-                      <button
-                        onClick={() => {
-                          const q = encodeURIComponent(
-                            `${s.title} ${s.artist} official`
-                          );
-                          window.open(
-                            `https://www.youtube.com/results?search_query=${q}`,
-                            "_blank",
-                            "noopener"
-                          );
-                        }}
-                        className="flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-bold hover:bg-white/[0.08]"
-                      >
-                        Find on YouTube
-                      </button>
+                      {s.videoId ? (
+                        <button
+                          onClick={() => beginSong(s, s.videoId as string)}
+                          className="flex-1 rounded-xl bg-[#c8ff3d] px-4 py-2.5 text-sm font-black text-black transition hover:-translate-y-0.5"
+                        >
+                          Sing →
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            const q = encodeURIComponent(
+                              `${s.title} ${s.artist} official`
+                            );
+                            window.open(
+                              `https://www.youtube.com/results?search_query=${q}`,
+                              "_blank",
+                              "noopener"
+                            );
+                          }}
+                          className="flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-bold hover:bg-white/[0.08]"
+                        >
+                          Find on YouTube
+                        </button>
+                      )}
                     </div>
-                    <p className="mt-2 text-[11px] leading-5 text-[#8a8a94]">
-                      Open the video, copy its link, paste it above — the
-                      track then plays here with live scoring.
-                    </p>
+                    {!s.videoId && (
+                      <p className="mt-2 text-[11px] leading-5 text-[#8a8a94]">
+                        Open the video, copy its link, paste it above — the
+                        track then plays here with live scoring.
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
