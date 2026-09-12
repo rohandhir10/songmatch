@@ -21,6 +21,7 @@ import {
 } from "@/lib/history";
 import {
   detectPitch,
+  frameGate,
   midiToNote,
   smoothFrequencies,
 } from "@/lib/pitch";
@@ -56,6 +57,7 @@ export default function TrainPage() {
   const animationFrame = useRef<number | null>(null);
   const live = useRef<LiveFrame[]>([]);
   const recent = useRef<number[]>([]);
+  const uiTick = useRef(frameGate(4));
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const contourRef = useRef(contour);
   contourRef.current = contour;
@@ -187,6 +189,7 @@ export default function TrainPage() {
 
   function detectLoop() {
     if (!analyser.current || !micContext.current) return;
+    const paint = uiTick.current();
     const t = now();
 
     const buffer = new Float32Array(analyser.current.fftSize);
@@ -198,16 +201,22 @@ export default function TrainPage() {
       if (recent.current.length > 8) recent.current.shift();
       const list = smoothFrequencies(recent.current, 5);
       const smoothed = list[list.length - 1] ?? detected;
-      setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+      if (paint) {
+        setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+      }
       live.current.push({ t, freq: smoothed });
       const ref = contourAt(t);
-      setDevCents(
-        ref !== null && ref > 0
-          ? Math.round(1200 * Math.log2(smoothed / ref))
-          : null
-      );
+      if (paint) {
+        setDevCents(
+          ref !== null && ref > 0
+            ? Math.round(1200 * Math.log2(smoothed / ref))
+            : null
+        );
+      }
     } else {
-      setDevCents(null);
+      if (paint) {
+        setDevCents(null);
+      }
     }
 
     draw(t);

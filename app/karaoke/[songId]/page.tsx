@@ -13,6 +13,7 @@ import {
 } from "@/lib/history";
 import {
   detectPitch,
+  frameGate,
   midiToNote,
   smoothFrequencies,
 } from "@/lib/pitch";
@@ -40,6 +41,7 @@ export default function KaraokePage() {
   const animationFrame = useRef<number | null>(null);
   const frames = useRef<number[]>([]);
   const recent = useRef<number[]>([]);
+  const uiTick = useRef(frameGate(4));
   const drone = useRef<OscillatorNode | null>(null);
 
   function stopDrone() {
@@ -66,6 +68,7 @@ export default function KaraokePage() {
 
   function detectLoop() {
     if (!analyser.current || !audioContext.current) return;
+    const paint = uiTick.current();
 
     const buffer = new Float32Array(analyser.current.fftSize);
     analyser.current.getFloatTimeDomainData(buffer);
@@ -81,7 +84,9 @@ export default function KaraokePage() {
       if (recent.current.length > 8) recent.current.shift();
       const list = smoothFrequencies(recent.current, 5);
       const smoothed = list[list.length - 1] ?? detected;
-      setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+      if (paint) {
+        setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+      }
     }
 
     animationFrame.current = requestAnimationFrame(detectLoop);

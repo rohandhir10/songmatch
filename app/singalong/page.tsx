@@ -20,6 +20,7 @@ import {
 import {
   centsOffNearest,
   detectPitch,
+  frameGate,
   midiToNote,
   smoothFrequencies,
 } from "@/lib/pitch";
@@ -52,6 +53,7 @@ export default function SingAlongPage() {
   const live = useRef<LiveFrame[]>([]);
   const recent = useRef<number[]>([]);
   const allFrames = useRef<Array<number | null>>([]);
+  const uiTick = useRef(frameGate(4));
   const canvas = useRef<HTMLCanvasElement | null>(null);
 
   function contourAt(ref: ReferenceContour, t: number): number | null {
@@ -174,6 +176,7 @@ export default function SingAlongPage() {
 
   function detectLoop() {
     if (!analyser.current || !micContext.current || !audio.current) return;
+    const paint = uiTick.current();
     const t = audio.current.currentTime;
 
     const buffer = new Float32Array(analyser.current.fftSize);
@@ -197,17 +200,23 @@ export default function SingAlongPage() {
       if (recent.current.length > 8) recent.current.shift();
       const list = smoothFrequencies(recent.current, 5);
       const smoothed = list[list.length - 1] ?? detected;
-      setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+      if (paint) {
+        setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+      }
       live.current.push({ t, freq: smoothed });
 
       const ref = contour ? contourAt(contour, t) : null;
-      if (ref !== null && ref !== undefined && ref > 0) {
-        setDevCents(Math.round(1200 * Math.log2(smoothed / ref)));
-      } else {
-        setDevCents(null);
+      if (paint) {
+        if (ref !== null && ref !== undefined && ref > 0) {
+          setDevCents(Math.round(1200 * Math.log2(smoothed / ref)));
+        } else {
+          setDevCents(null);
+        }
       }
     } else {
-      setDevCents(null);
+      if (paint) {
+        setDevCents(null);
+      }
     }
 
     draw(t);

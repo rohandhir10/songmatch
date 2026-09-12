@@ -15,6 +15,7 @@ import {
 } from "@/lib/history";
 import {
   detectPitch,
+  frameGate,
   midiToNote,
   pitchSteadiness,
   smoothFrequencies,
@@ -51,6 +52,7 @@ export default function PopularPage() {
   const recent = useRef<number[]>([]);
   const line = useRef<number[]>([]);
   const allFrames = useRef<Array<number | null>>([]);
+  const uiTick = useRef(frameGate(4));
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const songRef = useRef<PopularSong | null>(null);
   songRef.current = song;
@@ -152,6 +154,7 @@ export default function PopularPage() {
 
   function detectLoop() {
     if (!analyser.current || !micContext.current) return;
+    const paint = uiTick.current();
     const buffer = new Float32Array(analyser.current.fftSize);
     analyser.current.getFloatTimeDomainData(buffer);
     const detected = detectPitch(buffer, micContext.current.sampleRate);
@@ -176,7 +179,9 @@ export default function PopularPage() {
       if (recent.current.length > 8) recent.current.shift();
       const list = smoothFrequencies(recent.current, 5);
       const smoothed = list[list.length - 1] ?? detected;
-      setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+      if (paint) {
+        setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+      }
       line.current.push(smoothed);
       if (line.current.length > 180) line.current.shift();
       draw();

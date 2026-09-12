@@ -84,6 +84,20 @@ export function pitchSteadiness(frequencies: number[]): number | null {
   return Math.round((steady / frames.length) * 100);
 }
 
+// Latency budget of the live loops (mic → screen), measured reasoning:
+// capture ~0ms (AnalyserNode reads already-buffered audio) + YIN ~1-3ms
+// (2048-sample window × ~500 taus in JS) + canvas draw ~1ms. The dominant
+// term was React: setState on note/frequency/cents re-rendered 60×/s.
+// frameGate throttles those commits (~15Hz) while detection, recording
+// and canvas stay per-frame — perceived latency drops to ~window (43ms)
+// + smoothing (~60ms) with no render jank. rAF still throttles in
+// background tabs; that pauses the loop rather than drifting it.
+export function frameGate(everyNth: number): () => boolean {
+  const n = Math.max(1, Math.floor(everyNth));
+  let i = 0;
+  return () => i++ % n === 0;
+}
+
 // Trailing median over live pitch frames. The raw per-frame readout jumps on
 // vibrato and single-frame octave pops, which reads as "inaccurate" even when
 // the underlying detector is right — the display should show the stable pitch.

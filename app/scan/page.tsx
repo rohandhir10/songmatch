@@ -7,6 +7,7 @@ import {
   buildVocalProfile,
   centsOffNearest,
   detectPitch,
+  frameGate,
   midiToNote,
   pitchSteadiness,
   smoothFrequencies,
@@ -46,6 +47,9 @@ export default function ScanPage() {
 
   const line =
     useRef<number[]>([]);
+
+  const uiTick =
+    useRef(frameGate(4));
 
   const canvas =
     useRef<HTMLCanvasElement | null>(null);
@@ -175,6 +179,7 @@ export default function ScanPage() {
     ) {
       return;
     }
+    const paint = uiTick.current();
 
     const buffer =
       new Float32Array(
@@ -204,20 +209,26 @@ export default function ScanPage() {
       const smoothedList = smoothFrequencies(recent.current, 5);
       const smoothed = smoothedList[smoothedList.length - 1] ?? detected;
 
-      setFrequency(smoothed);
-      setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
-      setCents(centsOffNearest(smoothed));
+      // UI commits throttled to ~15Hz; detection, recording and canvas
+      // stay per-frame underneath.
+      if (paint) {
+        setFrequency(smoothed);
+        setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+        setCents(centsOffNearest(smoothed));
+      }
 
       line.current.push(smoothed);
       if (line.current.length > 180) line.current.shift();
       drawLine();
     }
 
-    setElapsed(
-      (performance.now() -
-        startedAt.current) /
-        1000
-    );
+    if (paint) {
+      setElapsed(
+        (performance.now() -
+          startedAt.current) /
+          1000
+      );
+    }
 
     animationFrame.current =
       requestAnimationFrame(
