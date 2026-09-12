@@ -37,6 +37,7 @@ export default function KaraokePage() {
   const [error, setError] = useState<string | null>(null);
   const [score, setScore] = useState<SongPerformance | null>(null);
   const [level, setLevel] = useState<Level>("Standard");
+  const [finishedLevel, setFinishedLevel] = useState<Level>("Standard");
 
   const audioContext = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
@@ -191,6 +192,7 @@ export default function KaraokePage() {
       // block showing the score.
     }
     setScore(result);
+    setFinishedLevel(level);
   }
 
   useEffect(() => cleanup, []);
@@ -322,7 +324,7 @@ export default function KaraokePage() {
                 <span className="text-4xl text-[#8a8a94]">%</span>
               </div>
               <p className="mt-4 text-sm text-[#b8b8c0]">
-                {score.level ?? level} arrangement · range hold {score.framesInside}% · vocal control counted
+                {finishedLevel} arrangement · range hold {score.rangeHold}% · vocal control counted
                 in — belts outside your zone score when they&apos;re steady
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
