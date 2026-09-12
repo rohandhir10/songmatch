@@ -50,7 +50,7 @@ export default function Matches() {
         data={matches}
         keyExtractor={(m) => m.song.id}
         contentContainerStyle={{ gap: 12, paddingBottom: 40 }}
-        renderItem={({ item: m }) => (
+        renderItem={({ item: m }: { item: SongMatch }) => (
           <View style={s.card}>
             <View style={s.row}>
               <View style={{ flex: 1 }}>
