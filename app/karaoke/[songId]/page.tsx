@@ -7,7 +7,7 @@ import { useParams } from "next/navigation";
 import { songs } from "@/lib/songs";
 import { scoreSongPerformance, type SongPerformance } from "@/lib/matching";
 import { arrangeForLevel, type Level } from "@/lib/levels";
-import LevelPicker from "../components/LevelPicker";
+import LevelPicker from "../../components/LevelPicker";
 import {
   HISTORY_KEY,
   recordPerformance,
