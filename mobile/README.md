@@ -38,6 +38,23 @@ npx expo start
 Mic permissions are pre-declared in `app.json`
 (`NSMicrophoneUsageDescription` / `RECORD_AUDIO`).
 
+## Paywall (RevenueCat, no backend)
+
+- Gating rules live in `src/lib/paywall.ts` (tested): first 8 shelf
+  songs + Siren Glide free, everything else Pro.
+- `src/lib/entitlements.ts` wraps `react-native-purchases` with
+  anonymous IDs — no accounts server needed. Purchases need a dev
+  client / EAS build (they do NOT work in Expo Go).
+- `app/paywall.tsx` renders offerings, purchase + restore, and a
+  `__DEV__` bypass. Until `SET-REVENUECAT-*-KEY` keys are added it
+  runs dry and says so instead of crashing.
+
+To go live: (1) create products in App Store Connect (`songmatch_pro_monthly`,
+`songmatch_pro_yearly`) + Play Console, (2) add them to a RevenueCat
+`pro` entitlement + offerings, (3) paste the two API keys into
+`entitlements.ts`, (4) make a test purchase in sandbox first.
+Enforcement points land with the mobile Popular + Train screens.
+
 ## Next native work (in order)
 
 1. Pitch frame processor (dev client module or WAV-chunk `detectPitch()` in JS) to replace the dev-demo profile path in `scan.tsx`
