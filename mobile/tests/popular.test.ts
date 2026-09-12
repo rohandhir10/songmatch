@@ -38,8 +38,8 @@ describe("youtube helpers", () => {
 });
 
 describe("popularSongs database", () => {
-  it("holds valid ranges; catalog songs exact, the rest flagged estimates", () => {
-    assert.ok(popularSongs.length >= 10, "needs a real shelf of songs");
+  it("holds exactly 100 songs with valid ranges", () => {
+    assert.equal(popularSongs.length, 100);
     const exactIds = new Set([
       "perfect",
       "until-i-found-you",
@@ -76,5 +76,13 @@ describe("popularSongs database", () => {
   it("has unique ids", () => {
     const ids = popularSongs.map((s) => s.id);
     assert.equal(new Set(ids).size, ids.length);
+  });
+
+  it("covers every genre with at least 3 songs", () => {
+    const genres = ["Pop", "Rock", "Soul", "Country", "Hindi", "Latin", "Classics", "Disney"];
+    for (const g of genres) {
+      const n = popularSongs.filter((s) => s.genre === g).length;
+      assert.ok(n >= 3, `${g} has only ${n}`);
+    }
   });
 });

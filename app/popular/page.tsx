@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import { embedUrl, parseYouTubeId } from "@/lib/youtube";
-import { popularSongs, type PopularSong } from "@/lib/popular";
+import { GENRES, popularSongs, type Genre, type PopularSong } from "@/lib/popular";
 import { scorePerformance } from "@/lib/matching";
 import {
   HISTORY_KEY,
@@ -32,6 +32,9 @@ export default function PopularPage() {
   const [videoId, setVideoId] = useState("");
   const [link, setLink] = useState("");
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [genre, setGenre] = useState<Genre | "All">("All");
+  const [sort, setSort] = useState<"az" | "easy" | "span">("az");
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("—");
   const [score, setScore] = useState<ScoreView | null>(null);
@@ -46,6 +49,41 @@ export default function PopularPage() {
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const songRef = useRef<PopularSong | null>(null);
   songRef.current = song;
+
+  const counts = useMemo(() => {
+    const m = new Map<Genre, number>();
+    for (const s of popularSongs) m.set(s.genre, (m.get(s.genre) ?? 0) + 1);
+    return m;
+  }, []);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const diffRank = (d: PopularSong["difficulty"]) =>
+      d === "Easy" ? 0 : d === "Medium" ? 1 : 2;
+    return popularSongs
+      .filter(
+        (s) =>
+          (genre === "All" || s.genre === genre) &&
+          (q === "" ||
+            s.title.toLowerCase().includes(q) ||
+            s.artist.toLowerCase().includes(q))
+      )
+      .sort((a, b) => {
+        if (sort === "easy") {
+          return (
+            diffRank(a.difficulty) - diffRank(b.difficulty) ||
+            a.title.localeCompare(b.title)
+          );
+        }
+        if (sort === "span") {
+          return (
+            a.vocalHighMidi - a.vocalLowMidi - (b.vocalHighMidi - b.vocalLowMidi) ||
+            a.title.localeCompare(b.title)
+          );
+        }
+        return a.title.localeCompare(b.title);
+      });
+  }, [query, genre, sort]);
 
   function draw() {
     const el = canvas.current;
@@ -335,8 +373,66 @@ export default function PopularPage() {
               <p className="mt-2 text-xs text-[#8a8a94]">
                 Ranges marked ~ are community estimates; the rest are measured.
               </p>
+
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search title or artist…"
+                className="mt-4 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-[#8a8a94] focus:border-[#c8ff3d]/60 focus:outline-none"
+              />
+
+              <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                {(["All", ...GENRES] as const).map((g) => {
+                  const active = genre === g;
+                  const n =
+                    g === "All"
+                      ? popularSongs.length
+                      : (counts.get(g) ?? 0);
+                  return (
+                    <button
+                      key={g}
+                      onClick={() => setGenre(g)}
+                      className={
+                        active
+                          ? "shrink-0 rounded-full bg-[#c8ff3d] px-4 py-2 text-xs font-black text-black"
+                          : "shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-bold text-[#b8b8c0] hover:bg-white/[0.08]"
+                      }
+                    >
+                      {g} · {n}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-xs text-[#8a8a94] tabular-nums">
+                  {visible.length} of {popularSongs.length} tracks
+                </span>
+                <label className="flex items-center gap-2 text-xs text-[#8a8a94]">
+                  Sort
+                  <select
+                    value={sort}
+                    onChange={(e) =>
+                      setSort(e.target.value as "az" | "easy" | "span")
+                    }
+                    className="rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white focus:border-[#c8ff3d]/60 focus:outline-none"
+                  >
+                    <option value="az">A–Z</option>
+                    <option value="easy">Easiest first</option>
+                    <option value="span">Narrowest range</option>
+                  </select>
+                </label>
+              </div>
+
+              {visible.length === 0 && (
+                <p className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-[#b8b8c0]">
+                  No tracks match “{query.trim()}”. Try another title or
+                  artist — or paste any YouTube link above.
+                </p>
+              )}
+
               <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {popularSongs.map((s) => (
+                {visible.map((s) => (
                   <div
                     key={s.id}
                     className="rounded-3xl border border-white/10 bg-white/[0.03] p-5"
@@ -346,7 +442,7 @@ export default function PopularPage() {
                       {s.artist}
                     </div>
                     <div className="mt-2 text-xs text-[#8a8a94]">
-                      Key {s.key} · {s.rangeEstimate ? "~" : ""}
+                      {s.genre} · Key {s.key} · {s.rangeEstimate ? "~" : ""}
                       {midiToNote(s.vocalLowMidi)}–
                       {midiToNote(s.vocalHighMidi)} · {s.difficulty}
                     </div>
