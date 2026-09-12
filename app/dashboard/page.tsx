@@ -47,6 +47,10 @@ export default function DashboardPage() {
       : bests.reduce((a, b) => (a.accuracy <= b.accuracy ? a : b));
   const recent = history.slice(0, 8);
 
+  function songHref(songId: string): string {
+    return songId.startsWith("file:") ? "/singalong" : `/karaoke/${songId}`;
+  }
+
   if (!loaded) {
     return (
       <main className="min-h-screen bg-[#070708] text-white">
@@ -138,7 +142,7 @@ export default function DashboardPage() {
 
           {weakest && (
             <Link
-              href={`/karaoke/${weakest.songId}`}
+              href={songHref(weakest.songId)}
               className="mt-6 block rounded-3xl border border-[#c8ff3d]/25 bg-[#c8ff3d]/[0.05] p-6 transition hover:-translate-y-1"
             >
               <div className="text-xs font-bold text-[#8a8a94]">
@@ -177,7 +181,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <Link
-                      href={`/karaoke/${b.songId}`}
+                      href={songHref(b.songId)}
                       className="shrink-0 rounded-xl bg-[#c8ff3d] px-4 py-2.5 text-sm font-black text-black"
                     >
                       Sing →

@@ -47,6 +47,13 @@ export default function Home() {
               View my matches
             </Link>
           </div>
+
+          <Link
+            href="/singalong"
+            className="mt-6 inline-block text-sm font-bold text-[#c8ff3d] hover:underline"
+          >
+            or sing along to your own music →
+          </Link>
         </section>
 
         <section aria-label="How it works" className="mx-auto mt-24 max-w-3xl">
