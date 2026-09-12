@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import MicCheckGate from "../components/MicCheckGate";
+import { monitorBleed } from "@/lib/miccheck";
 import {
   extractContourAsync,
   scoreAgainstContour,
@@ -38,6 +39,7 @@ export default function SingAlongPage() {
   const [note, setNote] = useState("—");
   const [devCents, setDevCents] = useState<number | null>(null);
   const [score, setScore] = useState<ContourScore | null>(null);
+  const [bleedWarn, setBleedWarn] = useState(false);
 
   const audio = useRef<HTMLAudioElement | null>(null);
   const objectUrl = useRef<string | null>(null);
@@ -49,6 +51,7 @@ export default function SingAlongPage() {
   const animationFrame = useRef<number | null>(null);
   const live = useRef<LiveFrame[]>([]);
   const recent = useRef<number[]>([]);
+  const allFrames = useRef<Array<number | null>>([]);
   const canvas = useRef<HTMLCanvasElement | null>(null);
 
   function contourAt(ref: ReferenceContour, t: number): number | null {
@@ -176,6 +179,18 @@ export default function SingAlongPage() {
     const buffer = new Float32Array(analyser.current.fftSize);
     analyser.current.getFloatTimeDomainData(buffer);
     const detected = detectPitch(buffer, micContext.current.sampleRate);
+
+    allFrames.current.push(
+      detected >= 70 && detected <= 800 ? detected : null
+    );
+    if (
+      allFrames.current.length >= 300 &&
+      allFrames.current.length % 120 === 0
+    ) {
+      if (monitorBleed(allFrames.current).suspect) {
+        setBleedWarn(true);
+      }
+    }
 
     if (detected >= 70 && detected <= 800) {
       recent.current.push(detected);
@@ -311,10 +326,12 @@ export default function SingAlongPage() {
 
       live.current = [];
       recent.current = [];
+      allFrames.current = [];
       setScore(null);
       setError(null);
       setNote("—");
       setDevCents(null);
+      setBleedWarn(false);
       audio.current.pause();
       audio.current.currentTime = 0;
       setPhase("performing");
@@ -530,6 +547,24 @@ export default function SingAlongPage() {
                   </div>
                 )}
               </div>
+
+              {bleedWarn && phase === "performing" && (
+                <div className="mx-auto mt-4 max-w-md rounded-2xl border border-[#ffc53d]/30 bg-[#ffc53d]/[0.06] p-4 text-left">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-xs leading-5 text-[#ffd98a]">
+                      This looks like the track, not you — continuous and
+                      breathless. Plug in earbuds if you haven&apos;t.
+                    </p>
+                    <button
+                      onClick={() => setBleedWarn(false)}
+                      aria-label="Dismiss"
+                      className="shrink-0 rounded-full border border-white/10 px-2.5 py-1 text-xs text-[#b8b8c0] hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <canvas
                 ref={canvas}

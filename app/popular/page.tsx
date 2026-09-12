@@ -7,6 +7,7 @@ import { embedUrl, parseYouTubeId } from "@/lib/youtube";
 import { GENRES, popularSongs, type Genre, type PopularSong } from "@/lib/popular";
 import MicCheckGate from "../components/MicCheckGate";
 import { scorePerformance } from "@/lib/matching";
+import { monitorBleed } from "@/lib/miccheck";
 import {
   HISTORY_KEY,
   recordPerformance,
@@ -40,6 +41,7 @@ export default function PopularPage() {
   const [note, setNote] = useState("—");
   const [score, setScore] = useState<ScoreView | null>(null);
   const [runId, setRunId] = useState(0);
+  const [bleedWarn, setBleedWarn] = useState(false);
 
   const micContext = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
@@ -48,6 +50,7 @@ export default function PopularPage() {
   const frames = useRef<number[]>([]);
   const recent = useRef<number[]>([]);
   const line = useRef<number[]>([]);
+  const allFrames = useRef<Array<number | null>>([]);
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const songRef = useRef<PopularSong | null>(null);
   songRef.current = song;
@@ -153,6 +156,20 @@ export default function PopularPage() {
     analyser.current.getFloatTimeDomainData(buffer);
     const detected = detectPitch(buffer, micContext.current.sampleRate);
 
+    // allFrames keeps gaps (nulls) so the bleed monitor can tell a
+    // breathing human from an unbroken track.
+    allFrames.current.push(
+      detected >= 70 && detected <= 800 ? detected : null
+    );
+    if (
+      allFrames.current.length >= 300 &&
+      allFrames.current.length % 120 === 0
+    ) {
+      if (monitorBleed(allFrames.current).suspect) {
+        setBleedWarn(true);
+      }
+    }
+
     if (detected >= 70 && detected <= 800) {
       frames.current.push(detected);
       recent.current.push(detected);
@@ -231,6 +248,8 @@ export default function PopularPage() {
     frames.current = [];
     recent.current = [];
     line.current = [];
+    allFrames.current = [];
+    setBleedWarn(false);
     setNote("—");
     setRunId((r) => r + 1); // restart the video from the top
     setPhase("performing");
@@ -539,6 +558,25 @@ export default function PopularPage() {
               <div className="mt-6 text-6xl font-black tracking-[-0.06em]">
                 {note}
               </div>
+
+              {bleedWarn && (
+                <div className="mx-auto mt-4 max-w-md rounded-2xl border border-[#ffc53d]/30 bg-[#ffc53d]/[0.06] p-4 text-left">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-xs leading-5 text-[#ffd98a]">
+                      This looks like the track, not you — continuous and
+                      breathless. Plug in earbuds if you haven&apos;t; your
+                      score only counts when the mic hears your voice.
+                    </p>
+                    <button
+                      onClick={() => setBleedWarn(false)}
+                      aria-label="Dismiss"
+                      className="shrink-0 rounded-full border border-white/10 px-2.5 py-1 text-xs text-[#b8b8c0] hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <canvas
                 ref={canvas}
