@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import MicCheckGate from "@/components/MicCheckGate";
+import MicCheckGate from "../components/MicCheckGate";
 import {
   extractContourAsync,
   scoreAgainstContour,

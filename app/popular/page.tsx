@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { embedUrl, parseYouTubeId } from "@/lib/youtube";
 import { GENRES, popularSongs, type Genre, type PopularSong } from "@/lib/popular";
-import MicCheckGate from "@/components/MicCheckGate";
+import MicCheckGate from "../components/MicCheckGate";
 import { scorePerformance } from "@/lib/matching";
 import {
   HISTORY_KEY,
