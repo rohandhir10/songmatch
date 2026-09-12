@@ -4,10 +4,9 @@
 # explicit extensions; Metro/Next resolve both).
 set -e
 cd "$(dirname "$0")/../.."
-for f in pitch matching songs contour history exercises youtube popular miccheck wav voiceAnalysis paywall; do
-  if [ -f "lib/$f.ts" ]; then
-    cp "lib/$f.ts" "mobile/src/lib/$f.ts"
-  fi
+for src in lib/*.ts; do
+  f="$(basename "$src")"
+  cp "$src" "mobile/src/lib/$f"
 done
 # Fix up relative cross-imports to explicit .ts extensions
 perl -pi -e 's#from "\./(pitch|songs|matching|contour|history|exercises|youtube|popular|miccheck|wav|voiceAnalysis|paywall)"#from "./$1.ts"#g' mobile/src/lib/*.ts

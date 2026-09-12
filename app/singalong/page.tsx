@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import MicCheckGate from "../components/MicCheckGate";
 import { monitorBleed } from "@/lib/miccheck";
+import { activeLyric, parseLrc, type LrcSong } from "@/lib/lrc";
 import {
   extractContourAsync,
   scoreAgainstContour,
@@ -41,6 +42,11 @@ export default function SingAlongPage() {
   const [devCents, setDevCents] = useState<number | null>(null);
   const [score, setScore] = useState<ContourScore | null>(null);
   const [bleedWarn, setBleedWarn] = useState(false);
+  const [lrc, setLrc] = useState<LrcSong | null>(null);
+  const [lyric, setLyric] = useState<{
+    text: string;
+    next: string | null;
+  } | null>(null);
 
   const audio = useRef<HTMLAudioElement | null>(null);
   const objectUrl = useRef<string | null>(null);
@@ -54,6 +60,8 @@ export default function SingAlongPage() {
   const recent = useRef<number[]>([]);
   const allFrames = useRef<Array<number | null>>([]);
   const uiTick = useRef(frameGate(4));
+  const lrcRef = useRef<LrcSong | null>(null);
+  lrcRef.current = lrc;
   const canvas = useRef<HTMLCanvasElement | null>(null);
 
   function contourAt(ref: ReferenceContour, t: number): number | null {
@@ -212,6 +220,9 @@ export default function SingAlongPage() {
         } else {
           setDevCents(null);
         }
+        if (lrcRef.current) {
+          setLyric(activeLyric(lrcRef.current, t));
+        }
       }
     } else {
       if (paint) {
@@ -227,6 +238,8 @@ export default function SingAlongPage() {
     setError(null);
     setFileName(file.name);
     setScore(null);
+    setLrc(null);
+    setLyric(null);
 
     const cacheKey = `songmatch-contour:${file.name}:${file.size}:${file.lastModified}`;
     try {
@@ -340,6 +353,7 @@ export default function SingAlongPage() {
       setError(null);
       setNote("—");
       setDevCents(null);
+      setLyric(null);
       setBleedWarn(false);
       audio.current.pause();
       audio.current.currentTime = 0;
@@ -500,6 +514,24 @@ export default function SingAlongPage() {
               >
                 Sing it →
               </button>
+              <label className="mt-3 block w-full cursor-pointer rounded-2xl border border-dashed border-white/20 bg-white/[0.02] px-6 py-3.5 text-center text-sm font-bold text-[#b8b8c0] hover:border-[#c8ff3d]/50 hover:text-white">
+                {lrc ? `Lyrics loaded (${lrc.lines.length} lines) — replace?` : "Add lyrics (.lrc, optional)"}
+                <input
+                  type="file"
+                  accept=".lrc,.txt"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!f) return;
+                    try {
+                      setLrc(parseLrc(await f.text()));
+                    } catch {
+                      setError("Couldn't read that lyric file.");
+                    }
+                  }}
+                />
+              </label>
               <button
                 onClick={() => setPhase("pick")}
                 className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.05] px-6 py-3 text-sm font-bold hover:bg-white/[0.08]"
@@ -572,6 +604,19 @@ export default function SingAlongPage() {
                       ✕
                     </button>
                   </div>
+                </div>
+              )}
+
+              {lyric && phase === "performing" && (
+                <div className="mx-auto mt-6 max-w-2xl">
+                  <div className="text-3xl font-black tracking-tight text-balance">
+                    {lyric.text}
+                  </div>
+                  {lyric.next && (
+                    <div className="mt-2 text-base font-bold text-[#8a8a94]">
+                      {lyric.next}
+                    </div>
+                  )}
                 </div>
               )}
 
