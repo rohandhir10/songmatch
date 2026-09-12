@@ -8,6 +8,7 @@ import { monitorBleed } from "@/lib/miccheck";
 import LyricsField from "../components/LyricsField";
 import { activeLyric, wordTimings, type LrcSong } from "@/lib/lrc";
 import { reduceVocals } from "@/lib/karaokeMix";
+import { contourToNotes, scoreNoteHits, type NoteBlock } from "@/lib/notes";
 import { encodeWavPcm16 } from "@/lib/wav";
 import {
   extractContourAsync,
@@ -55,6 +56,12 @@ export default function SingAlongPage() {
   const [trackMode, setTrackMode] = useState<"original" | "karaoke">("original");
   const [karaokeUrl, setKaraokeUrl] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
+  const [notes, setNotes] = useState<NoteBlock[]>([]);
+  const notesRef = useRef<NoteBlock[]>([]);
+  notesRef.current = notes;
+  const sungRef = useRef<Array<{ t: number; hz: number }>>([]);
+  const lastSung = useRef<number | null>(null);
+  const noteCanvas = useRef<HTMLCanvasElement | null>(null);
 
   const audio = useRef<HTMLAudioElement | null>(null);
   const objectUrl = useRef<string | null>(null);
@@ -222,6 +229,13 @@ export default function SingAlongPage() {
         setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
       }
       live.current.push({ t, freq: smoothed });
+      lastSung.current = smoothed;
+      if (paint) {
+        sungRef.current.push({ t, hz: smoothed });
+        if (sungRef.current.length > 7200) {
+          sungRef.current.splice(0, sungRef.current.length - 7200);
+        }
+      }
 
       const ref = contour ? contourAt(contour, t) : null;
       if (paint) {
@@ -240,13 +254,69 @@ export default function SingAlongPage() {
         }
       }
     } else {
+      lastSung.current = null;
       if (paint) {
         setDevCents(null);
       }
     }
 
     draw(t);
+    drawHighway(t, lastSung.current);
     animationFrame.current = requestAnimationFrame(detectLoop);
+  }
+
+  // StarMaker note highway: song notes scroll right-to-left, lighting
+  // green the instant your voice lands on them.
+  function drawHighway(t: number, sungHz: number | null) {
+    const el = noteCanvas.current;
+    const blocks = notesRef.current;
+    if (!el || blocks.length === 0) return;
+    const ctx = el.getContext("2d");
+    if (!ctx) return;
+    const W = (el.width = el.clientWidth * 2);
+    const H = (el.height = 220);
+    ctx.clearRect(0, 0, W, H);
+
+    const midis = blocks.map((b) => b.midi);
+    const lo = Math.min(...midis) - 2;
+    const hi = Math.max(...midis) + 2;
+    const yOf = (m: number) => H - ((m - lo) / Math.max(1, hi - lo)) * (H - 30) - 15;
+    // 1s of past, 3s of future; the "now" line sits 25% from the left.
+    const xOf = (tt: number) => ((tt - (t - 1)) / 4) * W;
+
+    const judged = scoreNoteHits(blocks, sungRef.current);
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      if (b.end < t - 1 || b.start > t + 3) continue;
+      const x = xOf(b.start);
+      const w = Math.max(6, xOf(b.end) - x);
+      const target = 440 * Math.pow(2, (b.midi - 69) / 12);
+      const y = yOf(b.midi) - 11;
+      const past = b.end < t;
+      const active = !past && b.start <= t;
+      let fill = "rgba(255,255,255,0.22)"; // upcoming
+      if (past) {
+        fill = judged[i]?.hit ? "#c8ff3d" : "rgba(255,92,105,0.55)";
+      } else if (
+        active &&
+        sungHz !== null &&
+        Math.abs(1200 * Math.log2(sungHz / target)) <= 60
+      ) {
+        fill = "#c8ff3d"; // hitting it right now
+      }
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, 22, 11);
+      ctx.fill();
+      if (active && fill !== "#c8ff3d") {
+        ctx.strokeStyle = "rgba(255,255,255,0.8)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+    // now-line
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillRect(xOf(t) - 1, 0, 2, H);
   }
 
   async function handleFile(file: File) {
@@ -269,6 +339,7 @@ export default function SingAlongPage() {
         const parsed = JSON.parse(cached) as ReferenceContour;
         if (parsed.points?.length > 0) {
           setContour(parsed);
+          setNotes(contourToNotes(parsed.points));
           setDuration(
             parsed.points[parsed.points.length - 1].t
           );
@@ -315,6 +386,7 @@ export default function SingAlongPage() {
         // Quota: analysis still works for this session.
       }
       setContour(ref);
+      setNotes(contourToNotes(ref.points));
       setDuration(buf.duration);
       if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
       objectUrl.current = URL.createObjectURL(file);
@@ -403,6 +475,8 @@ export default function SingAlongPage() {
       recent.current = [];
       allFrames.current = [];
       devSamples.current = [];
+      sungRef.current = [];
+      lastSung.current = null;
       setScore(null);
       setError(null);
       setNote("—");
@@ -700,6 +774,20 @@ export default function SingAlongPage() {
                 </div>
               )}
 
+              {notes.length > 0 && phase === "performing" && (
+                <>
+                  <canvas
+                    ref={noteCanvas}
+                    className="mx-auto mt-6 h-28 w-full max-w-3xl rounded-3xl border border-white/10 bg-black/40"
+                  />
+                  <p className="mt-3 text-xs text-[#8a8a94]">
+                    Hit the blocks — they light{" "}
+                    <span className="font-bold text-[#c8ff3d]">green</span>{" "}
+                    when your voice lands on them
+                  </p>
+                </>
+              )}
+
               <canvas
                 ref={canvas}
                 width={900}
@@ -734,6 +822,12 @@ export default function SingAlongPage() {
                     Average {score.meanAbsCents} cents from the original
                     across {score.framesScored} scored frames
                   </p>
+                  {notes.length > 0 && (
+                    <NoteHitLine
+                      notes={notes}
+                      sung={sungRef.current}
+                    />
+                  )}
                   <div className="mt-6 flex flex-col gap-3">
                     <button
                       onClick={startPerformance}
@@ -765,6 +859,26 @@ export default function SingAlongPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+// Final note-hit tally: how many of the song's notes the voice landed.
+function NoteHitLine({
+  notes,
+  sung,
+}: {
+  notes: NoteBlock[];
+  sung: Array<{ t: number; hz: number }>;
+}) {
+  const judged = scoreNoteHits(notes, sung);
+  const hits = judged.filter((j) => j.hit).length;
+  const pct =
+    judged.length > 0 ? Math.round((100 * hits) / judged.length) : 0;
+  return (
+    <p className="mt-4 text-lg font-black tabular-nums">
+      🎯 {hits}/{judged.length} notes{" "}
+      <span className="text-[#c8ff3d]">{pct}%</span>
+    </p>
   );
 }
 
