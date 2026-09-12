@@ -29,6 +29,12 @@ npx expo start
 # iOS: npx expo run:ios | Android: npx expo run:android
 ```
 
+> Deps: Expo SDK 52 pins carry 32 npm-audit findings (xmldom, postcss,
+> node-tar — all build-time tooling via Expo CLI/Metro, none ships in the
+> app binary). `npm audit fix` can't move them without breaking changes;
+> clear them with an Expo SDK upgrade (`npx expo install expo@latest`)
+> once there's a device to regression-test on.
+
 Mic permissions are pre-declared in `app.json`
 (`NSMicrophoneUsageDescription` / `RECORD_AUDIO`).
 
