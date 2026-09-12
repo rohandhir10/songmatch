@@ -6,7 +6,7 @@ import Link from "next/link";
 import { embedUrl, parseYouTubeId } from "@/lib/youtube";
 import { GENRES, popularSongs, type Genre, type PopularSong } from "@/lib/popular";
 import MicCheckGate from "../components/MicCheckGate";
-import { scorePerformance } from "@/lib/matching";
+import { scoreSongPerformance } from "@/lib/matching";
 import { monitorBleed } from "@/lib/miccheck";
 import {
   HISTORY_KEY,
@@ -278,12 +278,12 @@ export default function PopularPage() {
     let view: ScoreView | null = null;
 
     if (s && frames.current.length >= 3) {
-      const r = scorePerformance(frames.current, s);
+      const r = scoreSongPerformance(frames.current, s);
       if (r) {
         view = {
           accuracy: r.accuracy,
           grade: r.grade,
-          detail: `${r.framesInside} of ${r.framesTotal} frames inside ${midiToNote(s.tessituraLowMidi)}–${midiToNote(s.tessituraHighMidi)}${steadiness !== null ? ` · steadiness ${steadiness}%` : ""}`,
+          detail: `Range hold ${r.rangeHold}% · vocal control ${r.steadiness}% across ${r.framesTotal} frames. Belts outside your zone still count when they're steady.`,
         };
       }
     } else if (steadiness !== null && frames.current.length >= 3) {
@@ -595,9 +595,10 @@ export default function PopularPage() {
                   <>
                     {"  ·  "}
                     <span className="text-[#c8ff3d]">
-                      shaded band = hold zone (
+                      shaded band = your comfort zone (
                       {midiToNote(song.tessituraLowMidi)}–
-                      {midiToNote(song.tessituraHighMidi)})
+                      {midiToNote(song.tessituraHighMidi)}) — the song will
+                      take you outside it, that&apos;s normal
                     </span>
                   </>
                 )}

@@ -1,6 +1,53 @@
 import type { Song } from "./songs.ts";
 import type { VocalProfile } from "./pitch.ts";
 import { frequencyToMidi } from "./pitch.ts";
+import { pitchSteadiness } from "./pitch.ts";
+
+export type SongPerformance = {
+  accuracy: number;
+  grade: "S" | "A" | "B" | "C" | "D";
+  rangeHold: number;
+  steadiness: number;
+  framesTotal: number;
+};
+
+function gradeFor(accuracy: number): SongPerformance["grade"] {
+  return accuracy >= 90 ? "S"
+    : accuracy >= 75 ? "A"
+    : accuracy >= 60 ? "B"
+    : accuracy >= 40 ? "C"
+    : "D";
+}
+
+// Register-aware song scoring. Real songs move through registers — soft
+// verses low, belted choruses high, texture shifts throughout — so one
+// static comfort band can't be the target. This blends range-hold (are
+// you near the song's home?) with steadiness (are you in control,
+// wherever you are?): a steady belt above the tessitura still scores,
+// while sliding around inside the range does not.
+export function scoreSongPerformance(
+  frequencies: number[],
+  song: Song
+): SongPerformance | null {
+  const frames = frequencies.filter(
+    (f) => Number.isFinite(f) && f > 0
+  );
+  if (frames.length === 0) return null;
+
+  const hold = scorePerformance(frames, song);
+  const steady = pitchSteadiness(frames) ?? 0;
+  const accuracy = Math.round(
+    (hold ? hold.accuracy : 0) * 0.5 + steady * 0.5
+  );
+
+  return {
+    accuracy,
+    grade: gradeFor(accuracy),
+    rangeHold: hold ? hold.accuracy : 0,
+    steadiness: steady,
+    framesTotal: frames.length,
+  };
+}
 
 export type PerformanceScore = {
   accuracy: number;

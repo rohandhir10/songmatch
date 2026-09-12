@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { songs } from "@/lib/songs";
-import { scorePerformance, type PerformanceScore } from "@/lib/matching";
+import { scoreSongPerformance, type SongPerformance } from "@/lib/matching";
 import {
   HISTORY_KEY,
   recordPerformance,
@@ -33,7 +33,7 @@ export default function KaraokePage() {
   const [performing, setPerforming] = useState(false);
   const [note, setNote] = useState("—");
   const [error, setError] = useState<string | null>(null);
-  const [score, setScore] = useState<PerformanceScore | null>(null);
+  const [score, setScore] = useState<SongPerformance | null>(null);
 
   const audioContext = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
@@ -155,7 +155,7 @@ export default function KaraokePage() {
     cleanup();
     setPerforming(false);
     if (!song) return;
-    const result = scorePerformance(frames.current, song);
+    const result = scoreSongPerformance(frames.current, song);
     if (!result) {
       setError(
         "We didn't catch your voice. Get closer to the mic and perform again."
@@ -167,7 +167,7 @@ export default function KaraokePage() {
       songTitle: song.title,
       accuracy: result.accuracy,
       grade: result.grade,
-      framesInside: result.framesInside,
+      framesInside: result.rangeHold,
       framesTotal: result.framesTotal,
       at: Date.now(),
     };
@@ -291,7 +291,8 @@ export default function KaraokePage() {
                 {note}
               </div>
               <p className="mt-4 text-sm text-[#b8b8c0]">
-                Hold {low}–{high} · soft drone playing your floor note
+                Home base {low}–{high} · belts welcome · drone playing
+                your floor note
               </p>
               <button
                 onClick={stopPerformance}
@@ -312,8 +313,8 @@ export default function KaraokePage() {
                 <span className="text-4xl text-[#8a8a94]">%</span>
               </div>
               <p className="mt-4 text-sm text-[#b8b8c0]">
-                {score.framesInside} of {score.framesTotal} frames inside{" "}
-                {low}–{high}
+                Range hold {score.framesInside}% · vocal control counted
+                in — belts outside your zone score when they&apos;re steady
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <button
