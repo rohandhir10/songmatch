@@ -7,6 +7,11 @@ import { useParams } from "next/navigation";
 import { songs } from "@/lib/songs";
 import { scorePerformance, type PerformanceScore } from "@/lib/matching";
 import {
+  HISTORY_KEY,
+  recordPerformance,
+  type PerformanceEntry,
+} from "@/lib/history";
+import {
   detectPitch,
   midiToNote,
   smoothFrequencies,
@@ -125,6 +130,26 @@ export default function KaraokePage() {
         "We didn't catch your voice. Get closer to the mic and perform again."
       );
       return;
+    }
+    const entry: PerformanceEntry = {
+      songId: song.id,
+      songTitle: song.title,
+      accuracy: result.accuracy,
+      grade: result.grade,
+      framesInside: result.framesInside,
+      framesTotal: result.framesTotal,
+      at: Date.now(),
+    };
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      const existing: PerformanceEntry[] = raw ? JSON.parse(raw) : [];
+      localStorage.setItem(
+        HISTORY_KEY,
+        JSON.stringify(recordPerformance(existing, entry))
+      );
+    } catch {
+      // History is a nice-to-have; a full or broken store must never
+      // block showing the score.
     }
     setScore(result);
   }
@@ -266,6 +291,12 @@ export default function KaraokePage() {
                 >
                   Sing it again
                 </button>
+                <Link
+                  href="/dashboard"
+                  className="rounded-2xl border border-[#c8ff3d]/25 bg-[#c8ff3d]/[0.05] px-8 py-4 font-bold hover:bg-[#c8ff3d]/[0.08]"
+                >
+                  View my progress
+                </Link>
                 <Link
                   href="/matches"
                   className="rounded-2xl border border-white/10 bg-white/[0.05] px-8 py-4 font-bold hover:bg-white/[0.08]"
