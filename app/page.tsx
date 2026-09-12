@@ -10,20 +10,17 @@ export default function Home() {
           </span>
           <Link
             href="/matches"
-            className="text-sm text-white/40 hover:text-white"
+            className="text-sm text-[#b8b8c0] hover:text-white"
           >
             My matches
           </Link>
         </header>
 
         <section className="mx-auto max-w-2xl pt-24 text-center">
-          <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#c8ff3d]">
-            Find your range. Sing your songs.
-          </div>
-          <h1 className="mt-4 text-5xl font-black tracking-[-0.06em] sm:text-6xl">
+          <h1 className="text-5xl font-black tracking-[-0.06em] text-balance sm:text-6xl">
             Sing what suits your voice.
           </h1>
-          <p className="mt-5 leading-7 text-white/40">
+          <p className="mx-auto mt-5 max-w-xl leading-7 text-[#b8b8c0]">
             Scan your voice in seconds, get songs matched to your range, then
             perform them in karaoke mode.
           </p>
@@ -44,28 +41,31 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mx-auto mt-20 grid max-w-3xl gap-3 md:grid-cols-3">
-          <Step
-            n="1"
-            title="Scan"
-            body="Hum or sing for a few seconds. We detect your usable range and voice profile."
-            href="/scan"
-          />
-          <Step
-            n="2"
-            title="Match"
-            body="We score every song by range fit, tessitura fit and difficulty — plus key changes."
-            href="/matches"
-          />
-          <Step
-            n="3"
-            title="Sing"
-            body="Open your match in karaoke mode and perform it in the key that fits you."
-            href="/matches"
-          />
+        <section aria-label="How it works" className="mx-auto mt-24 max-w-3xl">
+          <ol className="relative flex flex-col gap-0 md:flex-row">
+            <JourneyStep
+              n="1"
+              title="Scan"
+              body="Hum or sing for a few seconds. We map your usable range and voice profile."
+              href="/scan"
+            />
+            <JourneyStep
+              n="2"
+              title="Match"
+              body="Every song is scored on range fit, tessitura fit and difficulty — with key changes."
+              href="/matches"
+            />
+            <JourneyStep
+              n="3"
+              title="Sing"
+              body="Open your match in karaoke mode and perform it in the key that fits you."
+              href="/matches"
+              last
+            />
+          </ol>
         </section>
 
-        <footer className="mt-20 pb-8 text-center text-xs text-white/25">
+        <footer className="mt-20 pb-8 text-center text-xs text-[#8a8a94]">
           SongMatch — your voice, your songs.
         </footer>
       </div>
@@ -73,25 +73,40 @@ export default function Home() {
   );
 }
 
-function Step({
+function JourneyStep({
   n,
   title,
   body,
   href,
+  last = false,
 }: {
   n: string;
   title: string;
   body: string;
   href: string;
+  last?: boolean;
 }) {
   return (
-    <Link
-      href={href}
-      className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 transition hover:-translate-y-1 hover:bg-white/[0.05]"
-    >
-      <div className="text-xs font-black text-[#c8ff3d]">{n}</div>
-      <h2 className="mt-2 text-xl font-black">{title}</h2>
-      <p className="mt-2 text-sm leading-6 text-white/50">{body}</p>
-    </Link>
+    <li className="relative flex flex-1 gap-4 pb-10 md:flex-col md:gap-0 md:pb-0 md:pr-6 last:pb-0 md:last:pr-0">
+      {!last && (
+        <span
+          aria-hidden
+          className="absolute top-8 bottom-[-8px] left-[15px] w-px bg-white/10 md:top-[15px] md:bottom-auto md:left-[32px] md:h-px md:w-[calc(100%-40px)]"
+        />
+      )}
+      <Link href={href} className="group flex flex-1 gap-4 md:block">
+        <span className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#c8ff3d]/40 bg-[#c8ff3d]/10 text-sm font-black text-[#c8ff3d]">
+          {n}
+        </span>
+        <span className="md:mt-4 md:block">
+          <span className="block text-lg font-black group-hover:text-[#c8ff3d]">
+            {title}
+          </span>
+          <span className="mt-1 block max-w-[38ch] text-sm leading-6 text-[#b8b8c0]">
+            {body}
+          </span>
+        </span>
+      </Link>
+    </li>
   );
 }

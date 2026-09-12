@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { songs } from "@/lib/songs";
 import { matchSongs, type SongMatch } from "@/lib/matching";
-import type { VocalProfile } from "@/lib/pitch";
+import { midiToNote, type VocalProfile } from "@/lib/pitch";
 
 export default function MatchesPage() {
   const [profile, setProfile] =
@@ -61,7 +61,7 @@ export default function MatchesPage() {
               We need your voice first.
             </h1>
 
-            <p className="mt-4 text-white/40">
+            <p className="mt-4 text-[#b8b8c0]">
               Scan your voice before we can recommend songs.
             </p>
 
@@ -104,21 +104,17 @@ export default function MatchesPage() {
 
         <section className="pt-24">
 
-          <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#c8ff3d]">
-            Your matches
-          </div>
-
-          <h1 className="mt-4 text-5xl font-black tracking-[-0.07em]">
+          <h1 className="text-5xl font-black tracking-[-0.07em] text-balance">
             Songs made for your voice.
           </h1>
 
-          <p className="mt-5 max-w-2xl text-white/40">
+          <p className="mt-5 max-w-2xl text-[#b8b8c0]">
             You were detected as a{" "}
-            <span className="text-white">
+            <span className="font-bold text-white">
               {profile.voiceType}
             </span>{" "}
             with an estimated usable range of{" "}
-            <span className="text-white">
+            <span className="font-bold text-white">
               {profile.lowNote}–{profile.highNote}
             </span>
             .
@@ -139,7 +135,7 @@ export default function MatchesPage() {
                       {match.song.title}
                     </h2>
 
-                    <p className="mt-1 text-sm text-white/40">
+                    <p className="mt-1 text-sm text-[#b8b8c0]">
                       {match.song.artist}
                     </p>
                   </div>
@@ -150,33 +146,25 @@ export default function MatchesPage() {
 
                 </div>
 
-                <div className="mt-5 flex flex-wrap gap-2">
-
-                  <Tag>
-                    Key {match.song.key}
-                  </Tag>
-
-                  <Tag>
-                    {match.song.difficulty}
-                  </Tag>
-
-                  <Tag>
-                    Range {match.song.vocalLowMidi}–
-                    {match.song.vocalHighMidi}
-                  </Tag>
-
-                  {match.recommendedTranspose !== 0 && (
-                    <Tag>
-                      {match.recommendedTranspose > 0
-                        ? "+"
-                        : ""}
-                      {match.recommendedTranspose} semitones
-                    </Tag>
-                  )}
-
+                <div className="mt-5 space-y-2.5">
+                  <FitBar label="Range fit" value={match.rangeScore} />
+                  <FitBar label="Comfort fit" value={match.tessituraScore} />
                 </div>
 
-                <p className="mt-5 text-sm leading-6 text-white/50">
+                <p className="mt-4 text-xs text-[#8a8a94]">
+                  Key {match.song.key} · {match.song.difficulty} ·{" "}
+                  {midiToNote(match.song.vocalLowMidi)}–
+                  {midiToNote(match.song.vocalHighMidi)}
+                  {match.recommendedTranspose !== 0 && (
+                    <>
+                      {" "}· Shift{" "}
+                      {match.recommendedTranspose > 0 ? "+" : ""}
+                      {match.recommendedTranspose} semitones
+                    </>
+                  )}
+                </p>
+
+                <p className="mt-3 text-sm leading-6 text-[#b8b8c0]">
                   {match.explanation}
                 </p>
 
@@ -200,14 +188,25 @@ export default function MatchesPage() {
   );
 }
 
-function Tag({
-  children,
+function FitBar({
+  label,
+  value,
 }: {
-  children: React.ReactNode;
+  label: string;
+  value: number;
 }) {
   return (
-    <span className="rounded-full bg-white/[0.07] px-3 py-1.5 text-[11px] text-white/50">
-      {children}
-    </span>
+    <div>
+      <div className="flex items-baseline justify-between text-xs">
+        <span className="text-[#8a8a94]">{label}</span>
+        <span className="font-bold text-white tabular-nums">{value}%</span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-[#c8ff3d]"
+          style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+        />
+      </div>
+    </div>
   );
 }

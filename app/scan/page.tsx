@@ -20,6 +20,7 @@ export default function ScanPage() {
   const [frequency, setFrequency] =
     useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const audioContext =
     useRef<AudioContext | null>(null);
@@ -93,6 +94,7 @@ export default function ScanPage() {
       startedAt.current = performance.now();
 
       setProfile(null);
+      setError(null);
       setNote("—");
       setFrequency(null);
       setElapsed(0);
@@ -100,8 +102,8 @@ export default function ScanPage() {
 
       detectLoop();
     } catch {
-      alert(
-        "Please allow microphone access to analyze your voice."
+      setError(
+        "Microphone access was blocked. Allow mic permission in your browser, then try again."
       );
     }
   }
@@ -181,8 +183,8 @@ export default function ScanPage() {
     if (!result) {
       setRecording(false);
 
-      alert(
-        "We couldn't detect enough usable pitch. Try speaking, humming or singing for a little longer."
+      setError(
+        "We couldn't catch enough usable pitch. Hum or sing a little longer, closer to the mic, then finish again."
       );
 
       return;
@@ -238,18 +240,20 @@ export default function ScanPage() {
 
         <section className="mx-auto max-w-2xl pt-24">
 
-          <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#c8ff3d]">
-            Voice Analysis
-          </div>
-
-          <h1 className="mt-4 text-5xl font-black tracking-[-0.06em]">
-            Let's find your range.
+          <h1 className="text-5xl font-black tracking-[-0.06em] text-balance">
+            Let&apos;s find your range.
           </h1>
 
-          <p className="mt-5 leading-7 text-white/40">
+          <p className="mt-5 leading-7 text-[#b8b8c0]">
             Speak naturally, then hum or sing some comfortable notes.
-            Don't force yourself to reach your highest or lowest note.
+            Don&apos;t force yourself to reach your highest or lowest note.
           </p>
+
+          {error && (
+            <p role="alert" className="mt-6 rounded-2xl border border-[#ff5c69]/30 bg-[#ff5c69]/10 p-4 text-sm leading-6 text-[#ffb3ba]">
+              {error}
+            </p>
+          )}
 
           <div className="mt-10 rounded-3xl border border-white/10 bg-white/[0.03] p-7">
 
@@ -265,12 +269,28 @@ export default function ScanPage() {
             {recording && (
               <div className="text-center">
 
-                <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border border-[#c8ff3d]/30 bg-[#c8ff3d]/10">
-                  <span className="text-4xl">🎙️</span>
+                <div className="relative mx-auto flex h-28 w-28 items-center justify-center rounded-full border border-[#c8ff3d]/30 bg-[#c8ff3d]/10">
+                  <span aria-hidden className="absolute inset-0 animate-ping rounded-full bg-[#c8ff3d]/10" />
+                  <svg
+                    width="40"
+                    height="40"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#c8ff3d"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <rect x="9" y="2" width="6" height="12" rx="3" />
+                    <path d="M5 10a7 7 0 0 0 14 0" />
+                    <line x1="12" y1="17" x2="12" y2="22" />
+                    <line x1="8" y1="22" x2="16" y2="22" />
+                  </svg>
                 </div>
 
-                <div className="mt-7 text-xs font-bold uppercase tracking-[0.15em] text-[#c8ff3d]">
-                  Listening
+                <div className="mt-7 text-sm font-black tracking-[0.2em] text-[#c8ff3d]">
+                  LISTENING
                 </div>
 
                 <div className="mt-4 text-7xl font-black tracking-[-0.08em]">
@@ -326,18 +346,14 @@ export default function ScanPage() {
 
                 <div className="text-center">
 
-                  <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#c8ff3d]">
-                    Your vocal profile
-                  </div>
-
-                  <div className="mt-4 text-6xl font-black tracking-[-0.08em]">
+                  <div className="text-6xl font-black tracking-[-0.08em] text-balance">
                     {profile.lowNote}
                     {" – "}
                     {profile.highNote}
                   </div>
 
-                  <p className="mt-3 text-white/40">
-                    Estimated usable vocal range
+                  <p className="mt-3 text-[#b8b8c0]">
+                    Your usable vocal range · {profile.voiceType}
                   </p>
 
                 </div>

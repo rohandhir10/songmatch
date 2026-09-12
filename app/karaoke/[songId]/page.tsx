@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { songs } from "@/lib/songs";
+import { midiToNote } from "@/lib/pitch";
 
 export default function KaraokePage() {
   const params = useParams();
@@ -26,12 +27,24 @@ export default function KaraokePage() {
             href="/matches"
             className="text-[#c8ff3d]"
           >
-            ← Back
+            ← Back to matches
           </Link>
 
-          <h1 className="mt-12 text-4xl font-black">
-            Song not found.
+          <h1 className="mt-12 text-4xl font-black text-balance">
+            We couldn&apos;t find that song.
           </h1>
+
+          <p className="mt-4 text-[#b8b8c0]">
+            It may have been removed from the catalogue. Pick another match
+            instead.
+          </p>
+
+          <Link
+            href="/matches"
+            className="mt-8 inline-block rounded-2xl bg-[#c8ff3d] px-7 py-4 font-black text-black"
+          >
+            View my matches →
+          </Link>
 
         </div>
       </main>
@@ -54,67 +67,49 @@ export default function KaraokePage() {
 
           <Link
             href="/matches"
-            className="text-sm text-white/40 hover:text-white"
+            className="text-sm text-[#b8b8c0] hover:text-white"
           >
             ← Matches
           </Link>
 
         </header>
 
-        <section className="pt-20 text-center">
+        <section className="mx-auto max-w-3xl pt-20 text-center">
 
-          <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#c8ff3d]">
-            Karaoke
-          </div>
-
-          <h1 className="mt-4 text-5xl font-black tracking-[-0.07em]">
+          <h1 className="text-5xl font-black tracking-[-0.07em] text-balance">
             {song.title}
           </h1>
 
-          <p className="mt-3 text-white/40">
+          <p className="mt-3 text-[#b8b8c0]">
             {song.artist}
           </p>
 
-          <div className="mx-auto mt-12 flex h-[380px] max-w-3xl flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/[0.03]">
+          <p className="mt-4 text-xs text-[#8a8a94]">
+            Key {song.key} · {song.difficulty} ·{" "}
+            {midiToNote(song.vocalLowMidi)}–
+            {midiToNote(song.vocalHighMidi)}
+          </p>
 
-            <div className="text-xs font-bold uppercase tracking-[0.16em] text-white/30">
-              Live pitch
+          <div className="mt-12 rounded-3xl border border-white/10 bg-white/[0.03] p-10">
+
+            <div className="text-sm font-black tracking-[0.2em] text-[#c8ff3d]">
+              REHEARSAL ROOM
             </div>
 
-            <div className="mt-6 text-8xl font-black tracking-[-0.08em] text-[#c8ff3d]">
-              C4
-            </div>
-
-            <p className="mt-4 text-sm text-white/30">
-              Live pitch tracking will appear here.
+            <p className="mx-auto mt-4 max-w-md leading-7 text-[#b8b8c0]">
+              Live pitch tracking, backing tracks and synced lyrics are
+              being built for this room now. Your match data above is
+              real — the stage just isn&apos;t wired up yet.
             </p>
 
-          </div>
-
-          <div className="mx-auto mt-6 max-w-3xl">
-
-            <div className="flex justify-between text-xs text-white/25">
-              <span>0:00</span>
-              <span>Preview mode</span>
-              <span>3:45</span>
-            </div>
-
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full w-[0%] rounded-full bg-[#c8ff3d]" />
-            </div>
+            <Link
+              href="/scan"
+              className="mt-8 inline-block rounded-2xl border border-white/10 bg-white/[0.05] px-8 py-4 font-bold hover:bg-white/[0.08]"
+            >
+              Rescan my voice
+            </Link>
 
           </div>
-
-          <button
-            onClick={() =>
-              alert(
-                "Next: connect the microphone pitch engine to this screen, then add licensed backing tracks and lyrics."
-              )
-            }
-            className="mt-8 rounded-2xl bg-[#c8ff3d] px-10 py-4 font-black text-black"
-          >
-            Start performance
-          </button>
 
         </section>
 

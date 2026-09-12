@@ -23,6 +23,34 @@ body {
   box-sizing: border-box;
 }
 
+::selection {
+  background: #c8ff3d;
+  color: #070708;
+}
+
+:focus-visible {
+  outline: 2px solid #c8ff3d;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #070708;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a30;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a42;
+}
+
 button,
 a {
   -webkit-tap-highlight-color: transparent;
