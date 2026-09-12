@@ -362,6 +362,16 @@ export default function PopularPage() {
             your pitch live and score you. Wear earbuds so the mic hears
             you, not the track.
           </p>
+          <Link
+            href="/singalong"
+            className="mx-auto mt-4 block max-w-xl rounded-2xl border border-[#c8ff3d]/25 bg-[#c8ff3d]/[0.05] p-4 text-sm leading-6 text-[#b8b8c0] transition hover:bg-[#c8ff3d]/[0.08]"
+          >
+            Want the full karaoke loop — backing track, lyrics and
+            hit-the-word scoring?{" "}
+            <span className="font-black text-[#c8ff3d]">
+              Bring your own audio file →
+            </span>
+          </Link>
 
           {error && (
             <p

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import MicCheckGate from "../components/MicCheckGate";
 import { monitorBleed } from "@/lib/miccheck";
-import { activeLyric, parseLrc, type LrcSong } from "@/lib/lrc";
+import { activeLyric, parseLrc, wordTimings, type LrcSong } from "@/lib/lrc";
 import { reduceVocals } from "@/lib/karaokeMix";
 import { encodeWavPcm16 } from "@/lib/wav";
 import {
@@ -48,7 +48,9 @@ export default function SingAlongPage() {
   const [lyric, setLyric] = useState<{
     text: string;
     next: string | null;
+    index: number;
   } | null>(null);
+  const devSamples = useRef<Array<{ t: number; dev: number }>>([]);
   const [trackMode, setTrackMode] = useState<"original" | "karaoke">("original");
   const [karaokeUrl, setKaraokeUrl] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
@@ -223,7 +225,12 @@ export default function SingAlongPage() {
       const ref = contour ? contourAt(contour, t) : null;
       if (paint) {
         if (ref !== null && ref !== undefined && ref > 0) {
-          setDevCents(Math.round(1200 * Math.log2(smoothed / ref)));
+          const dev = Math.round(1200 * Math.log2(smoothed / ref));
+          setDevCents(dev);
+          devSamples.current.push({ t, dev });
+          if (devSamples.current.length > 3600) {
+            devSamples.current.splice(0, devSamples.current.length - 3600);
+          }
         } else {
           setDevCents(null);
         }
@@ -394,6 +401,7 @@ export default function SingAlongPage() {
       live.current = [];
       recent.current = [];
       allFrames.current = [];
+      devSamples.current = [];
       setScore(null);
       setError(null);
       setNote("—");
@@ -693,11 +701,13 @@ export default function SingAlongPage() {
                 </div>
               )}
 
-              {lyric && phase === "performing" && (
+              {lyric && phase === "performing" && lrc && (
                 <div className="mx-auto mt-6 max-w-2xl">
-                  <div className="text-3xl font-black tracking-tight text-balance">
-                    {lyric.text}
-                  </div>
+                  <WordLine
+                    lrc={lrc}
+                    index={lyric.index}
+                    samples={devSamples.current}
+                  />
                   {lyric.next && (
                     <div className="mt-2 text-base font-bold text-[#8a8a94]">
                       {lyric.next}
@@ -771,5 +781,53 @@ export default function SingAlongPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+// Per-word hit display: words light as their time arrives, colored by how
+// in-tune the voice was during each word's window — lime nailed, amber
+// close, red off, dim for words with no voice at all.
+function WordLine({
+  lrc,
+  index,
+  samples,
+}: {
+  lrc: LrcSong;
+  index: number;
+  samples: Array<{ t: number; dev: number }>;
+}) {
+  const line = lrc.lines[index];
+  if (!line) return null;
+  const nextStart =
+    index + 1 < lrc.lines.length ? lrc.lines[index + 1].t : null;
+  const words = wordTimings(line, nextStart);
+  const nowT =
+    samples.length > 0 ? samples[samples.length - 1].t : line.t;
+
+  return (
+    <p className="text-3xl font-black leading-snug tracking-tight text-balance">
+      {words.map((w, i) => {
+        const end = i + 1 < words.length ? words[i + 1].t : nextStart ?? w.t + 4;
+        const inWindow = samples.filter((s) => s.t >= w.t && s.t < end);
+        let color = "#8a8a94"; // future or unattempted
+        if (w.t <= nowT) {
+          if (inWindow.length === 0) {
+            color = "#55555e"; // missed entirely
+          } else {
+            const mean =
+              inWindow.reduce((sum, s) => sum + Math.abs(s.dev), 0) /
+              inWindow.length;
+            color =
+              mean <= 40 ? "#c8ff3d" : mean <= 80 ? "#ffc53d" : "#ff5c69";
+          }
+        }
+        return (
+          <span key={`${w.t}-${w.word}`} style={{ color }}>
+            {w.word}
+            {i + 1 < words.length ? " " : ""}
+          </span>
+        );
+      })}
+    </p>
   );
 }

@@ -3,11 +3,38 @@ export type LrcLine = {
   text: string;
 };
 
+export type WordHit = {
+  word: string;
+  t: number;
+};
+
 export type LrcSong = {
   title: string | null;
   artist: string | null;
   lines: LrcLine[];
 };
+
+// Splits a lyric line into per-word start times for hit-the-word visuals.
+// Standard LRC only carries line times, so words are distributed across
+// the line window by character weight — an approximation, stated openly:
+// words light in reading order as the line elapses. Lines without a
+// following line get a 4s window.
+export function wordTimings(
+  line: LrcLine,
+  nextStart: number | null
+): WordHit[] {
+  const words = line.text.split(/\s+/).filter((w) => w.length > 0);
+  if (words.length === 0) return [];
+  const end = nextStart !== null && nextStart > line.t ? nextStart : line.t + 4;
+  const total = words.reduce((sum, w) => sum + w.length + 1, 0) - 1;
+  const dur = Math.max(0.2, end - line.t);
+  let cursor = 0;
+  return words.map((word, i) => {
+    const t = i === 0 ? line.t : line.t + (cursor / total) * dur;
+    cursor += word.length + 1;
+    return { word, t };
+  });
+}
 
 const TAG = /^\[(ar|ti|al|by|offset):(.*)\]$/i;
 const TIMES = /\[(\d+:)?(\d+):(\d+(?:\.\d+)?)\]/g;
