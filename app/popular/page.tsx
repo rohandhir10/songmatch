@@ -376,8 +376,9 @@ export default function PopularPage() {
     ytPlayer.current = null;
     setNote("—");
     setRunId((r) => r + 1); // restart the video from the top
-    if (s) {
-      void ensureLyrics(s, s.id, null);
+    const current = songRef.current;
+    if (current) {
+      void ensureLyrics(current, current.id, null);
     }
     setPhase("performing");
     detectLoop();
