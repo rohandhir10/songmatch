@@ -6,6 +6,7 @@ export type PerformanceEntry = {
   framesInside: number;
   framesTotal: number;
   at: number;
+  level?: string;
 };
 
 const MAX_ENTRIES = 100;

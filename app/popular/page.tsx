@@ -7,6 +7,8 @@ import { embedUrl, parseYouTubeId } from "@/lib/youtube";
 import { GENRES, popularSongs, type Genre, type PopularSong } from "@/lib/popular";
 import MicCheckGate from "../components/MicCheckGate";
 import LevelPicker from "../components/LevelPicker";
+import LyricsField from "../components/LyricsField";
+import { activeLyric, type LrcSong } from "@/lib/lrc";
 import { arrangeForLevel, type Level } from "@/lib/levels";
 import { scoreSongPerformance } from "@/lib/matching";
 import { monitorBleed } from "@/lib/miccheck";
@@ -46,6 +48,11 @@ export default function PopularPage() {
   const [runId, setRunId] = useState(0);
   const [bleedWarn, setBleedWarn] = useState(false);
   const [level, setLevel] = useState<Level>("Standard");
+  const [lrc, setLrc] = useState<LrcSong | null>(null);
+  const [lyric, setLyric] = useState<{
+    text: string;
+    next: string | null;
+  } | null>(null);
 
   const micContext = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
@@ -59,6 +66,11 @@ export default function PopularPage() {
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const songRef = useRef<PopularSong | null>(null);
   songRef.current = song;
+  const lrcRef = useRef<LrcSong | null>(null);
+  lrcRef.current = lrc;
+  const ytFrame = useRef<HTMLIFrameElement | null>(null);
+  const ytPlayer = useRef<{ getCurrentTime?: () => number } | null>(null);
+  const songTime = useRef(0);
   const arrangedRef = useRef<PopularSong | null>(null);
   arrangedRef.current = song ? { ...song, ...arrangeForLevel(song, level) } : null;
 
@@ -157,9 +169,62 @@ export default function PopularPage() {
     }
   }
 
+  // YouTube player clock: drives lyric sync (and later, auto-finish).
+  // Falls back to a local timer when the API isn't ready.
+  useEffect(() => {
+    if (phase !== "performing" && phase !== "scored") return;
+    let cancelled = false;
+    const w = window as typeof window & {
+      YT?: {
+        Player: new (
+          el: HTMLIFrameElement,
+          opts: { events?: { onReady?: (e: { target: unknown }) => void } }
+        ) => { getCurrentTime?: () => number };
+      };
+      onYouTubeIframeAPIReady?: () => void;
+    };
+    const attach = () => {
+      if (cancelled || !ytFrame.current || ytPlayer.current) return;
+      try {
+        ytPlayer.current = new w.YT!.Player(ytFrame.current, {});
+      } catch {
+        ytPlayer.current = null;
+      }
+    };
+    if (w.YT?.Player) {
+      attach();
+      return () => {
+        cancelled = true;
+      };
+    }
+    const prev = w.onYouTubeIframeAPIReady;
+    w.onYouTubeIframeAPIReady = () => {
+      prev?.();
+      attach();
+    };
+    const script = document.querySelector<HTMLScriptElement>(
+      'script[src="https://www.youtube.com/iframe_api"]'
+    );
+    if (!script) {
+      const el = document.createElement("script");
+      el.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(el);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, videoId, runId]);
+
   function detectLoop() {
     if (!analyser.current || !micContext.current) return;
     const paint = uiTick.current();
+    try {
+      const t = ytPlayer.current?.getCurrentTime?.();
+      if (typeof t === "number" && Number.isFinite(t)) songTime.current = t;
+      else songTime.current += 1 / 60;
+    } catch {
+      songTime.current += 1 / 60;
+    }
     const buffer = new Float32Array(analyser.current.fftSize);
     analyser.current.getFloatTimeDomainData(buffer);
     const detected = detectPitch(buffer, micContext.current.sampleRate);
@@ -186,6 +251,9 @@ export default function PopularPage() {
       const smoothed = list[list.length - 1] ?? detected;
       if (paint) {
         setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+        if (lrcRef.current) {
+          setLyric(activeLyric(lrcRef.current, songTime.current));
+        }
       }
       line.current.push(smoothed);
       if (line.current.length > 180) line.current.shift();
@@ -260,6 +328,9 @@ export default function PopularPage() {
     line.current = [];
     allFrames.current = [];
     setBleedWarn(false);
+    setLyric(null);
+    songTime.current = 0;
+    ytPlayer.current = null;
     setNote("—");
     setRunId((r) => r + 1); // restart the video from the top
     setPhase("performing");
@@ -573,6 +644,7 @@ export default function PopularPage() {
               )}
               <div className="mx-auto mt-4 aspect-video w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-black">
                 <iframe
+                  ref={ytFrame}
                   key={`${videoId}-${runId}`}
                   src={`${embedUrl(videoId)}&autoplay=${phase === "performing" ? 1 : 0}`}
                   title="Song playback"
@@ -581,6 +653,21 @@ export default function PopularPage() {
                   className="h-full w-full"
                 />
               </div>
+              <div className="mx-auto mt-3 max-w-md">
+                <LyricsField lrc={lrc} onLoad={setLrc} onError={setError} />
+              </div>
+              {lyric && phase === "performing" && (
+                <div className="mx-auto mt-3 max-w-2xl text-center">
+                  <div className="text-2xl font-black tracking-tight">
+                    {lyric.text}
+                  </div>
+                  {lyric.next && (
+                    <div className="mt-1.5 text-sm font-bold text-[#8a8a94]">
+                      {lyric.next}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="mt-6 text-6xl font-black tracking-[-0.06em]">
                 {note}

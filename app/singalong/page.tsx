@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 
 import MicCheckGate from "../components/MicCheckGate";
 import { monitorBleed } from "@/lib/miccheck";
-import { activeLyric, parseLrc, wordTimings, type LrcSong } from "@/lib/lrc";
+import LyricsField from "../components/LyricsField";
+import { activeLyric, wordTimings, type LrcSong } from "@/lib/lrc";
 import { reduceVocals } from "@/lib/karaokeMix";
 import { encodeWavPcm16 } from "@/lib/wav";
 import {
@@ -608,24 +609,7 @@ export default function SingAlongPage() {
                 Karaoke mix drops the centered vocal out of your file —
                 quality depends on the mix.
               </p>
-              <label className="mt-3 block w-full cursor-pointer rounded-2xl border border-dashed border-white/20 bg-white/[0.02] px-6 py-3.5 text-center text-sm font-bold text-[#b8b8c0] hover:border-[#c8ff3d]/50 hover:text-white">
-                {lrc ? `Lyrics loaded (${lrc.lines.length} lines) — replace?` : "Add lyrics (.lrc, optional)"}
-                <input
-                  type="file"
-                  accept=".lrc,.txt"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    e.target.value = "";
-                    if (!f) return;
-                    try {
-                      setLrc(parseLrc(await f.text()));
-                    } catch {
-                      setError("Couldn't read that lyric file.");
-                    }
-                  }}
-                />
-              </label>
+              <LyricsField lrc={lrc} onLoad={setLrc} onError={setError} />
               <button
                 onClick={() => setPhase("pick")}
                 className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.05] px-6 py-3 text-sm font-bold hover:bg-white/[0.08]"
