@@ -5,6 +5,12 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "songmatch",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#070708"
+    },
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
@@ -15,6 +21,10 @@
     },
     "android": {
       "package": "com.songmatch.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#070708"
+      },
       "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"]
     },
     "plugins": ["expo-router", "expo-av"],
