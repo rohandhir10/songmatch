@@ -24,14 +24,19 @@ function hzToMidi(hz: number): number {
 }
 
 export function contourToNotes(
-  contour: Array<{ t: number; hz: number }>
+  contour: Array<{ t: number; freq: number | null }>
 ): NoteBlock[] {
   const notes: NoteBlock[] = [];
-  if (contour.length === 0) return notes;
+  // Silence (null) splits notes — same as a timed gap.
+  const voiced = contour.filter(
+    (p): p is { t: number; freq: number } =>
+      p.freq !== null && p.freq > 0
+  );
+  if (voiced.length === 0) return notes;
 
-  let start = contour[0].t;
-  let midis: number[] = [hzToMidi(contour[0].hz)];
-  let lastT = contour[0].t;
+  let start = voiced[0].t;
+  let midis: number[] = [hzToMidi(voiced[0].freq)];
+  let lastT = voiced[0].t;
 
   const flush = (end: number) => {
     if (midis.length === 0) return;
@@ -47,10 +52,10 @@ export function contourToNotes(
     }
   };
 
-  for (let i = 1; i < contour.length; i++) {
-    const p = contour[i];
+  for (let i = 1; i < voiced.length; i++) {
+    const p = voiced[i];
     const gap = p.t - lastT;
-    const midi = hzToMidi(p.hz);
+    const midi = hzToMidi(p.freq);
     const center =
       [...midis].sort((a, b) => a - b)[Math.floor(midis.length / 2)];
     if (gap > 0.25 || Math.abs(midi - center) * 100 >= SPLIT_CENTS) {

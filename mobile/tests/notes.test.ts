@@ -4,9 +4,9 @@ import { contourToNotes, scoreNoteHits } from "../src/lib/notes.ts";
 
 // Contour: 0.5s of A4 (440), 0.5s of C5 (523.25), 0.25s silence, 0.5s of A4.
 function synthContour() {
-  const pts: Array<{ t: number; hz: number }> = [];
+  const pts: Array<{ t: number; freq: number | null }> = [];
   const push = (t0: number, t1: number, hz: number) => {
-    for (let t = t0; t < t1; t += 0.02) pts.push({ t, hz });
+    for (let t = t0; t < t1; t += 0.02) pts.push({ t, freq: hz });
   };
   push(0, 0.5, 440);
   push(0.5, 1.0, 523.25);
@@ -27,15 +27,15 @@ describe("contourToNotes (StarMaker note blocks)", () => {
 
   it("ignores blips shorter than a 16th note", () => {
     const pts = synthContour();
-    pts.push({ t: 2.0, hz: 659.25 }, { t: 2.02, hz: 659.25 });
+    pts.push({ t: 2.0, freq: 659.25 }, { t: 2.02, freq: 659.25 });
     const notes = contourToNotes(pts);
     assert.equal(notes.length, 3);
   });
 
   it("handles vibrato without splitting the note", () => {
-    const pts: Array<{ t: number; hz: number }> = [];
+    const pts: Array<{ t: number; freq: number | null }> = [];
     for (let t = 0; t < 0.8; t += 0.02) {
-      pts.push({ t, hz: 440 * Math.pow(2, (30 * Math.sin(t * 30)) / 1200) });
+      pts.push({ t, freq: 440 * Math.pow(2, (30 * Math.sin(t * 30)) / 1200) });
     }
     const notes = contourToNotes(pts);
     assert.equal(notes.length, 1);
