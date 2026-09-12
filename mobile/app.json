@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "SongMatch",
+    "slug": "songmatch",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "songmatch",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.songmatch.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "SongMatch analyzes your singing voice to find songs that fit your range."
+      }
+    },
+    "android": {
+      "package": "com.songmatch.app",
+      "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"]
+    },
+    "plugins": ["expo-router", "expo-av"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
