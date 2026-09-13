@@ -53,6 +53,7 @@ export default function PopularPage() {
   const [lyric, setLyric] = useState<{
     text: string;
     next: string | null;
+    index: number;
   } | null>(null);
   const [lyricsState, setLyricsState] = useState<
     "idle" | "loading" | "ready" | "missing"
@@ -75,6 +76,8 @@ export default function PopularPage() {
   const ytFrame = useRef<HTMLIFrameElement | null>(null);
   const ytPlayer = useRef<{ getCurrentTime?: () => number } | null>(null);
   const songTime = useRef(0);
+  const sungRef = useRef<Array<{ t: number; hz: number }>>([]);
+  const [lineHold, setLineHold] = useState<number | null>(null);
   const arrangedRef = useRef<PopularSong | null>(null);
   arrangedRef.current = song ? { ...song, ...arrangeForLevel(song, level) } : null;
 
@@ -292,8 +295,37 @@ export default function PopularPage() {
       const smoothed = list[list.length - 1] ?? detected;
       if (paint) {
         setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+        sungRef.current.push({ t: songTime.current, hz: smoothed });
+        if (sungRef.current.length > 3600) {
+          sungRef.current.splice(0, sungRef.current.length - 3600);
+        }
         if (lrcRef.current) {
-          setLyric(activeLyric(lrcRef.current, songTime.current));
+          const now = activeLyric(lrcRef.current, songTime.current);
+          setLyric(now);
+          // Hold-the-phrase: % of this line sung inside the zone.
+          const zone = arrangedRef.current;
+          if (now && zone) {
+            const lines = lrcRef.current.lines;
+            const end =
+              now.index + 1 < lines.length
+                ? lines[now.index + 1].t
+                : songTime.current + 0.01;
+            const lo = 440 * Math.pow(2, (zone.tessituraLowMidi - 69) / 12);
+            const hi = 440 * Math.pow(2, (zone.tessituraHighMidi - 69) / 12);
+            const inLine = sungRef.current.filter(
+              (s) => s.t >= lines[now.index].t && s.t < end
+            );
+            setLineHold(
+              inLine.length === 0
+                ? null
+                : Math.round(
+                    (100 * inLine.filter((s) => s.hz >= lo && s.hz <= hi).length) /
+                      inLine.length
+                  )
+            );
+          } else {
+            setLineHold(null);
+          }
         }
       }
       line.current.push(smoothed);
@@ -371,6 +403,8 @@ export default function PopularPage() {
     setBleedWarn(false);
     setLyric(null);
     setLrc(null);
+    setLineHold(null);
+    sungRef.current = [];
     setLyricsState("idle");
     songTime.current = 0;
     ytPlayer.current = null;
@@ -729,6 +763,19 @@ export default function PopularPage() {
                   {lyric.next && (
                     <div className="mt-1.5 text-sm font-bold text-[#8a8a94]">
                       {lyric.next}
+                    </div>
+                  )}
+                  {lineHold !== null && (
+                    <div className="mx-auto mt-3 max-w-xs">
+                      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-[#c8ff3d] transition-all"
+                          style={{ width: `${lineHold}%` }}
+                        />
+                      </div>
+                      <p className="mt-1 text-[11px] font-bold text-[#8a8a94] tabular-nums">
+                        Holding the phrase: {lineHold}%
+                      </p>
                     </div>
                   )}
                 </div>
