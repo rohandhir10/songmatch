@@ -14,11 +14,11 @@ import {
   type PerformanceEntry,
 } from "@/lib/history";
 import {
-  detectPitch,
   frameGate,
   midiToNote,
   smoothFrequencies,
 } from "@/lib/pitch";
+import { detectEngine, warmEngine } from "@/lib/engine";
 
 export default function KaraokePage() {
   const params = useParams();
@@ -77,7 +77,7 @@ export default function KaraokePage() {
     const buffer = new Float32Array(analyser.current.fftSize);
     analyser.current.getFloatTimeDomainData(buffer);
 
-    const detected = detectPitch(
+    const detected = detectEngine(
       buffer,
       audioContext.current.sampleRate
     );
@@ -124,6 +124,7 @@ export default function KaraokePage() {
       const source = context.createMediaStreamSource(media);
       const node = context.createAnalyser();
       node.fftSize = 2048;
+      warmEngine(context.sampleRate);
       source.connect(node);
       analyser.current = node;
 

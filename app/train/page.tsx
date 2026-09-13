@@ -20,11 +20,11 @@ import {
   type PerformanceEntry,
 } from "@/lib/history";
 import {
-  detectPitch,
   frameGate,
   midiToNote,
   smoothFrequencies,
 } from "@/lib/pitch";
+import { detectEngine, warmEngine } from "@/lib/engine";
 
 type Phase = "pick" | "performing" | "scored";
 
@@ -194,7 +194,7 @@ export default function TrainPage() {
 
     const buffer = new Float32Array(analyser.current.fftSize);
     analyser.current.getFloatTimeDomainData(buffer);
-    const detected = detectPitch(buffer, micContext.current.sampleRate);
+    const detected = detectEngine(buffer, micContext.current.sampleRate);
 
     if (detected >= 70 && detected <= 800) {
       recent.current.push(detected);
@@ -274,6 +274,7 @@ export default function TrainPage() {
       const source = mic.createMediaStreamSource(media);
       const node = mic.createAnalyser();
       node.fftSize = 2048;
+      warmEngine(mic.sampleRate);
       source.connect(node);
       analyser.current = node;
 

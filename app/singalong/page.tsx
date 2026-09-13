@@ -24,11 +24,11 @@ import {
 } from "@/lib/history";
 import {
   centsOffNearest,
-  detectPitch,
   frameGate,
   midiToNote,
   smoothFrequencies,
 } from "@/lib/pitch";
+import { detectEngine, warmEngine } from "@/lib/engine";
 
 type Phase = "pick" | "analyzing" | "ready" | "check" | "performing" | "scored";
 
@@ -206,7 +206,7 @@ export default function SingAlongPage() {
 
     const buffer = new Float32Array(analyser.current.fftSize);
     analyser.current.getFloatTimeDomainData(buffer);
-    const detected = detectPitch(buffer, micContext.current.sampleRate);
+    const detected = detectEngine(buffer, micContext.current.sampleRate);
 
     allFrames.current.push(
       detected >= 70 && detected <= 800 ? detected : null
@@ -468,6 +468,7 @@ export default function SingAlongPage() {
       const source = context.createMediaStreamSource(media);
       const node = context.createAnalyser();
       node.fftSize = 2048;
+      warmEngine(context.sampleRate);
       source.connect(node);
       analyser.current = node;
 

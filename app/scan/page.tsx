@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   buildVocalProfile,
   centsOffNearest,
-  detectPitch,
   frameGate,
   midiToNote,
   pitchSteadiness,
@@ -16,6 +15,7 @@ import {
 import {
   brightnessLabel,
 } from "@/lib/timbre";
+import { detectEngine, warmEngine } from "@/lib/engine";
 
 export default function ScanPage() {
   const [recording, setRecording] = useState(false);
@@ -122,6 +122,8 @@ export default function ScanPage() {
 
       analyser.current = node;
 
+      warmEngine(audioContext.current.sampleRate);
+
       samples.current = [];
       centroids.current = [];
       recent.current = [];
@@ -215,7 +217,7 @@ export default function ScanPage() {
     );
 
     const detected =
-      detectPitch(
+      detectEngine(
         buffer,
         audioContext.current.sampleRate
       );

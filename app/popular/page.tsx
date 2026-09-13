@@ -33,12 +33,12 @@ import {
   type PerformanceEntry,
 } from "@/lib/history";
 import {
-  detectPitch,
   frameGate,
   midiToNote,
   pitchSteadiness,
   smoothFrequencies,
 } from "@/lib/pitch";
+import { detectEngine, warmEngine } from "@/lib/engine";
 
 type Phase = "pick" | "check" | "performing" | "scored";
 
@@ -326,7 +326,7 @@ export default function PopularPage() {
     }
     const buffer = new Float32Array(analyser.current.fftSize);
     analyser.current.getFloatTimeDomainData(buffer);
-    const detected = detectPitch(buffer, micContext.current.sampleRate);
+    const detected = detectEngine(buffer, micContext.current.sampleRate);
 
     // allFrames keeps gaps (nulls) so the bleed monitor can tell a
     // breathing human from an unbroken track.
@@ -547,6 +547,7 @@ export default function PopularPage() {
       const source = context.createMediaStreamSource(media);
       const node = context.createAnalyser();
       node.fftSize = 2048;
+      warmEngine(context.sampleRate);
       source.connect(node);
       analyser.current = node;
       return true;
