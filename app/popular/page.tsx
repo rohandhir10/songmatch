@@ -69,6 +69,19 @@ export default function PopularPage() {
   const allFrames = useRef<Array<number | null>>([]);
   const uiTick = useRef(frameGate(4));
   const canvas = useRef<HTMLCanvasElement | null>(null);
+  function offsetKey(s: PopularSong | null, vid: string): string {
+    return `songmatch-offset:${s ? s.id : `link:${vid}`}`;
+  }
+
+  function loadOffset(s: PopularSong | null, vid: string): number {
+    try {
+      const raw = localStorage.getItem(offsetKey(s, vid));
+      const v = raw === null ? 0 : Number(raw);
+      return Number.isFinite(v) ? Math.max(-10, Math.min(10, v)) : 0;
+    } catch {
+      return 0;
+    }
+  }
   const songRef = useRef<PopularSong | null>(null);
   songRef.current = song;
   const lrcRef = useRef<LrcSong | null>(null);
@@ -76,6 +89,10 @@ export default function PopularPage() {
   const ytFrame = useRef<HTMLIFrameElement | null>(null);
   const ytPlayer = useRef<{ getCurrentTime?: () => number } | null>(null);
   const songTime = useRef(0);
+  const lastTick = useRef(0);
+  const [lyricOffset, setLyricOffset] = useState(0);
+  const offsetRef = useRef(0);
+  offsetRef.current = lyricOffset;
   const sungRef = useRef<Array<{ t: number; hz: number }>>([]);
   const [lineHold, setLineHold] = useState<number | null>(null);
   const tileCanvas = useRef<HTMLCanvasElement | null>(null);
@@ -263,12 +280,15 @@ export default function PopularPage() {
   function detectLoop() {
     if (!analyser.current || !micContext.current) return;
     const paint = uiTick.current();
+    const nowMs = performance.now();
+    const dt = lastTick.current > 0 ? (nowMs - lastTick.current) / 1000 : 1 / 60;
+    lastTick.current = nowMs;
     try {
       const t = ytPlayer.current?.getCurrentTime?.();
       if (typeof t === "number" && Number.isFinite(t)) songTime.current = t;
-      else songTime.current += 1 / 60;
+      else songTime.current += Math.min(dt, 0.25);
     } catch {
-      songTime.current += 1 / 60;
+      songTime.current += Math.min(dt, 0.25);
     }
     const buffer = new Float32Array(analyser.current.fftSize);
     analyser.current.getFloatTimeDomainData(buffer);
@@ -294,14 +314,16 @@ export default function PopularPage() {
       if (recent.current.length > 8) recent.current.shift();
       const list = smoothFrequencies(recent.current, 5);
       const smoothed = list[list.length - 1] ?? detected;
+      // Effective lyric time: player clock plus the user's per-song nudge.
+      const tEff = songTime.current + offsetRef.current;
       if (paint) {
         setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
-        sungRef.current.push({ t: songTime.current, hz: smoothed });
+        sungRef.current.push({ t: tEff, hz: smoothed });
         if (sungRef.current.length > 3600) {
           sungRef.current.splice(0, sungRef.current.length - 3600);
         }
         if (lrcRef.current) {
-          const now = activeLyric(lrcRef.current, songTime.current);
+          const now = activeLyric(lrcRef.current, tEff);
           setLyric(now);
           // Hold-the-phrase: % of this line sung inside the zone.
           const zone = arrangedRef.current;
@@ -310,7 +332,7 @@ export default function PopularPage() {
             const end =
               now.index + 1 < lines.length
                 ? lines[now.index + 1].t
-                : songTime.current + 0.01;
+                : tEff + 0.01;
             const lo = 440 * Math.pow(2, (zone.tessituraLowMidi - 69) / 12);
             const hi = 440 * Math.pow(2, (zone.tessituraHighMidi - 69) / 12);
             const inLine = sungRef.current.filter(
@@ -334,7 +356,7 @@ export default function PopularPage() {
       draw();
     }
 
-    drawTiles(songTime.current);
+    drawTiles(songTime.current + offsetRef.current);
     animationFrame.current = requestAnimationFrame(detectLoop);
   }
 
@@ -469,6 +491,8 @@ export default function PopularPage() {
     sungRef.current = [];
     setLyricsState("idle");
     songTime.current = 0;
+    lastTick.current = 0;
+    setLyricOffset(loadOffset(songRef.current, videoId));
     ytPlayer.current = null;
     setNote("—");
     setRunId((r) => r + 1); // restart the video from the top
@@ -846,10 +870,62 @@ export default function PopularPage() {
                         ref={tileCanvas}
                         className="mx-auto mt-4 h-24 w-full max-w-2xl rounded-3xl border border-white/10 bg-black/40"
                       />
-                      <p className="mt-2 text-[11px] text-[#8a8a94]">
-                        Tiles fall in time with the words — sing in your
-                        zone as each one lands
-                      </p>
+                      <div className="mx-auto mt-2 flex max-w-2xl items-center justify-between gap-3">
+                        <p className="text-[11px] text-[#8a8a94]">
+                          Tiles fall in time with the words — sing in your
+                          zone as each one lands
+                        </p>
+                        <div
+                          role="group"
+                          aria-label="Lyric sync"
+                          className="flex shrink-0 items-center gap-1.5"
+                        >
+                          <button
+                            onClick={() =>
+                              setLyricOffset((o) => {
+                                const v = Math.max(-10, +(o - 0.5).toFixed(1));
+                                try {
+                                  localStorage.setItem(
+                                    offsetKey(songRef.current, videoId),
+                                    String(v)
+                                  );
+                                } catch {
+                                  // ignore
+                                }
+                                return v;
+                              })
+                            }
+                            aria-label="Lyrics earlier"
+                            className="rounded-full border border-white/10 px-2.5 py-1 text-xs font-black text-[#b8b8c0] hover:text-white"
+                          >
+                            −
+                          </button>
+                          <span className="min-w-10 text-center text-[11px] font-bold text-[#8a8a94] tabular-nums">
+                            {lyricOffset > 0 ? "+" : ""}
+                            {lyricOffset.toFixed(1)}s
+                          </span>
+                          <button
+                            onClick={() =>
+                              setLyricOffset((o) => {
+                                const v = Math.min(10, +(o + 0.5).toFixed(1));
+                                try {
+                                  localStorage.setItem(
+                                    offsetKey(songRef.current, videoId),
+                                    String(v)
+                                  );
+                                } catch {
+                                  // ignore
+                                }
+                                return v;
+                              })
+                            }
+                            aria-label="Lyrics later"
+                            className="rounded-full border border-white/10 px-2.5 py-1 text-xs font-black text-[#b8b8c0] hover:text-white"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
                     </>
                   )}
                 </div>
