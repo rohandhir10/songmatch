@@ -869,10 +869,24 @@ export default function PopularPage() {
               </div>
 
               {visible.length === 0 && (
-                <p className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-[#b8b8c0]">
-                  No tracks match “{query.trim()}”. Try another title or
-                  artist — or paste any YouTube link above.
-                </p>
+                <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center">
+                  <p className="text-sm text-[#b8b8c0]">
+                    No tracks match “{query.trim()}”
+                    {genre !== "All" ? ` in ${genre}` : ""}. Try another
+                    title or artist — or paste any YouTube link above.
+                  </p>
+                  {(query.trim() !== "" || genre !== "All") && (
+                    <button
+                      onClick={() => {
+                        setQuery("");
+                        setGenre("All");
+                      }}
+                      className="mt-4 rounded-full border border-[#c8ff3d]/40 px-4 py-2 text-xs font-black text-[#c8ff3d] hover:bg-[#c8ff3d]/10"
+                    >
+                      Clear search & filters
+                    </button>
+                  )}
+                </div>
               )}
 
               <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -949,6 +963,9 @@ export default function PopularPage() {
                 />
               </div>
               <div className="mx-auto mt-6 max-w-md">
+                <div className="mb-4 flex justify-center">
+                  <LevelPicker level={level} onChange={setLevel} />
+                </div>
                 <MicCheckGate onPass={startAfterCheck} />
               </div>
               <button
@@ -971,8 +988,10 @@ export default function PopularPage() {
                 </div>
               )}
               {phase === "performing" && (
-                <div className="mt-4 flex justify-center">
-                  <LevelPicker level={level} onChange={setLevel} />
+                <div className="mt-4 flex flex-col items-center gap-2">
+                  <span className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-1.5 text-xs font-black text-[#b8b8c0]">
+                    {level} · locked for this take
+                  </span>
                 </div>
               )}
               <div className="mx-auto mt-4 aspect-video w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-black">
@@ -1099,7 +1118,7 @@ export default function PopularPage() {
                                 ? `Sing ${3 - onsetCount} more lines to auto-sync`
                                 : "Shift tiles to match your voice"
                             }
-                            className="rounded-full border border-[#c8ff3d]/40 px-2.5 py-1 text-xs font-black text-[#c8ff3d] hover:bg-[#c8ff3d]/10 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="rounded-full border border-[#c8ff3d]/40 px-3 py-2 min-h-[44px] text-xs font-black text-[#c8ff3d] hover:bg-[#c8ff3d]/10 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             Auto{onsetCount < 3 ? ` ${onsetCount}/3` : ""}
                           </button>
@@ -1116,7 +1135,7 @@ export default function PopularPage() {
                               })
                             }
                             aria-label="Lyrics earlier"
-                            className="rounded-full border border-white/10 px-2.5 py-1 text-xs font-black text-[#b8b8c0] hover:text-white"
+                            className="rounded-full border border-white/10 px-3 py-2 min-h-[44px] text-xs font-black text-[#b8b8c0] hover:text-white"
                           >
                             −
                           </button>
@@ -1137,7 +1156,7 @@ export default function PopularPage() {
                               })
                             }
                             aria-label="Lyrics later"
-                            className="rounded-full border border-white/10 px-2.5 py-1 text-xs font-black text-[#b8b8c0] hover:text-white"
+                            className="rounded-full border border-white/10 px-3 py-2 min-h-[44px] text-xs font-black text-[#b8b8c0] hover:text-white"
                           >
                             +
                           </button>
@@ -1229,6 +1248,14 @@ export default function PopularPage() {
                     >
                       Sing another track
                     </button>
+                    {song && (
+                      <button
+                        onClick={() => beginSong(song, videoId)}
+                        className="rounded-2xl border border-[#c8ff3d]/40 bg-[#c8ff3d]/[0.06] px-6 py-3 text-sm font-black text-[#c8ff3d] hover:bg-[#c8ff3d]/[0.12]"
+                      >
+                        Sing it again — same song & level
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

@@ -337,6 +337,15 @@ export default function TrainPage() {
       setPhase("pick");
       return;
     }
+    // Silence scores as failure without this: a handful of noise frames
+    // is a hardware problem, not a D grade.
+    if (result.framesScored < 20) {
+      setError(
+        "We barely heard you — check the mic is on and close, then try again."
+      );
+      setPhase("pick");
+      return;
+    }
     const ex = exercise;
     const entry: PerformanceEntry = {
       songId: ex ? `train:${ex.id}` : "train:unknown",
