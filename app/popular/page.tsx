@@ -9,7 +9,7 @@ import MicCheckGate from "../components/MicCheckGate";
 import LevelPicker from "../components/LevelPicker";
 import LyricsField from "../components/LyricsField";
 import SingAlongPage from "../singalong/page";
-import { activeLyric, parseLrc, wordTimings, type LrcSong } from "@/lib/lrc";
+import { activeLyric, parseLrc, type LrcSong } from "@/lib/lrc";
 import { cacheLrc, cachedLrc, fetchLrcText } from "@/lib/lyrics";
 import {
   buildChart,
@@ -415,7 +415,6 @@ export default function PopularPage() {
   // the original's melody.
   function drawTiles(t: number) {
     const el = tileCanvas.current;
-    const lrc = lrcRef.current;
     const zone = arrangedRef.current;
     const chartNotes = chartRef.current;
     if (!el || !zone) return;
@@ -429,8 +428,6 @@ export default function PopularPage() {
     // Charts are stored raw and shifted here, so a later nudge moves
     // chart and lyrics together instead of tearing them apart.
     const off = offsetRef.current;
-    const lo = 440 * Math.pow(2, (zone.tessituraLowMidi - 69) / 12);
-    const hi = 440 * Math.pow(2, (zone.tessituraHighMidi - 69) / 12);
     // Pitch axis: an octave below the zone to an octave above, so the
     // voice trace has room to move like a song does.
     const loMidi = zone.tessituraLowMidi - 12;
@@ -452,12 +449,12 @@ export default function PopularPage() {
     ctx.fillStyle = "rgba(200,255,61,0.5)";
     ctx.fillRect(hitX - 2, 0, 4, H);
 
-    const tileH = 52;
-    const tileY = bandTop + bandH / 2 - tileH / 2;
-
     // Hum-charted tiles at true pitch (your version). Live hit = voice
     // within ±60¢ of the tile as it crosses; landed tiles judged on
     // coverage across their window.
+    // Word tiles are gone: invented timing on a flat line taught the
+    // wrong game. The lane shows the voice trace, the zone band, and
+    // hum-charted tiles (real user data) when a chart exists.
     if (chartNotes && chartNotes.length > 0) {
       const judged = scoreVsChart(chartNotes, sungRef.current);
       const liveHz =
@@ -494,47 +491,6 @@ export default function PopularPage() {
           ctx.stroke();
         }
       });
-    } else if (lrc) {
-    const lines = lrc.lines;
-    let li = 0;
-    while (li < lines.length - 1 && lines[li + 1].t <= t) li++;
-    for (let k = Math.max(0, li - 1); k < Math.min(lines.length, li + 4); k++) {
-      const nextStart = k + 1 < lines.length ? lines[k + 1].t : null;
-      const words = wordTimings(lines[k], nextStart);
-      words.forEach((w, i) => {
-        if (w.t < t - 1 || w.t > t + 3) return;
-        const wEnd = i + 1 < words.length ? words[i + 1].t : (nextStart ?? w.t + 1.5);
-        const x = xOf(w.t);
-        const wpx = Math.max(56, xOf(Math.min(wEnd, w.t + 2.5)) - x);
-        const landed = w.t <= t;
-        let fill = "rgba(255,255,255,0.22)";
-        if (landed) {
-          const atHit = sungRef.current.filter(
-            (s) =>
-              s.t + off >= w.t - 0.3 &&
-              s.t + off <= Math.min(t, w.t + 0.3)
-          );
-          if (atHit.length === 0) fill = "rgba(255,255,255,0.12)";
-          else if (atHit.some((s) => s.hz >= lo && s.hz <= hi))
-            fill = "#c8ff3d";
-          else fill = "#ffc53d";
-        }
-        ctx.fillStyle = fill;
-        ctx.beginPath();
-        ctx.roundRect(x, tileY, wpx, tileH, 14);
-        ctx.fill();
-        if (!landed && x < hitX) {
-          ctx.strokeStyle = "rgba(255,255,255,0.35)";
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-        ctx.fillStyle =
-          fill === "#c8ff3d" ? "#000" : "rgba(255,255,255,0.9)";
-        ctx.font = "bold 24px system-ui";
-        ctx.textAlign = "left";
-        ctx.fillText(w.word.slice(0, 12), x + 14, tileY + 34);
-      });
-    }
     }
 
     // The singer's own pitch trace, scrolling with the lane — this is the
