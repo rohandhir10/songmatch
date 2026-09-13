@@ -8,7 +8,7 @@ import { GENRES, popularSongs, type Genre, type PopularSong } from "@/lib/popula
 import MicCheckGate from "../components/MicCheckGate";
 import LevelPicker from "../components/LevelPicker";
 import LyricsField from "../components/LyricsField";
-import { activeLyric, parseLrc, type LrcSong } from "@/lib/lrc";
+import { activeLyric, parseLrc, wordTimings, type LrcSong } from "@/lib/lrc";
 import { cacheLrc, cachedLrc, fetchLrcText } from "@/lib/lyrics";
 import { arrangeForLevel, type Level } from "@/lib/levels";
 import { scoreSongPerformance } from "@/lib/matching";
@@ -78,6 +78,7 @@ export default function PopularPage() {
   const songTime = useRef(0);
   const sungRef = useRef<Array<{ t: number; hz: number }>>([]);
   const [lineHold, setLineHold] = useState<number | null>(null);
+  const tileCanvas = useRef<HTMLCanvasElement | null>(null);
   const arrangedRef = useRef<PopularSong | null>(null);
   arrangedRef.current = song ? { ...song, ...arrangeForLevel(song, level) } : null;
 
@@ -333,7 +334,68 @@ export default function PopularPage() {
       draw();
     }
 
+    drawTiles(songTime.current);
     animationFrame.current = requestAnimationFrame(detectLoop);
+  }
+
+  // Piano-tiles lane: word tiles fall to the hit line in time with the
+  // lyrics. A tile flashes green when the voice is inside the zone as it
+  // lands, amber when sung off-zone, grey when missed. Timing + control,
+  // never a claim about the original's melody.
+  function drawTiles(t: number) {
+    const el = tileCanvas.current;
+    const lrc = lrcRef.current;
+    const zone = arrangedRef.current;
+    if (!el || !lrc || !zone) return;
+    const ctx = el.getContext("2d");
+    if (!ctx) return;
+    const W = (el.width = el.clientWidth * 2);
+    const H = (el.height = 200);
+    ctx.clearRect(0, 0, W, H);
+
+    const lo = 440 * Math.pow(2, (zone.tessituraLowMidi - 69) / 12);
+    const hi = 440 * Math.pow(2, (zone.tessituraHighMidi - 69) / 12);
+    // 2s window falling to the hit line at the bottom.
+    const yOf = (tt: number) => H - ((tt - t) / 2) * (H - 20) - 10;
+    const hitY = yOf(t);
+
+    ctx.fillStyle = "rgba(200,255,61,0.35)";
+    ctx.fillRect(0, hitY - 2, W, 4);
+
+    const lines = lrc.lines;
+    let li = 0;
+    while (li < lines.length - 1 && lines[li + 1].t <= t) li++;
+    for (let k = Math.max(0, li - 1); k < Math.min(lines.length, li + 3); k++) {
+      const nextStart = k + 1 < lines.length ? lines[k + 1].t : null;
+      const words = wordTimings(lines[k], nextStart);
+      const n = Math.max(1, words.length);
+      words.forEach((w, i) => {
+        if (w.t < t - 0.6 || w.t > t + 2) return;
+        const tw = W / n;
+        const x = i * tw + 6;
+        const y = yOf(w.t) - 30;
+        const landed = w.t <= t;
+        let fill = "rgba(255,255,255,0.22)";
+        if (landed) {
+          const atHit = sungRef.current.filter(
+            (s) => s.t >= w.t - 0.3 && s.t <= Math.min(t, w.t + 0.3)
+          );
+          if (atHit.length === 0) fill = "rgba(255,255,255,0.12)";
+          else if (atHit.some((s) => s.hz >= lo && s.hz <= hi))
+            fill = "#c8ff3d";
+          else fill = "#ffc53d";
+        }
+        ctx.fillStyle = fill;
+        ctx.beginPath();
+        ctx.roundRect(x, y, tw - 12, 56, 12);
+        ctx.fill();
+        ctx.fillStyle =
+          fill === "#c8ff3d" ? "#000" : "rgba(255,255,255,0.85)";
+        ctx.font = "bold 22px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText(w.word.slice(0, 10), x + (tw - 12) / 2, y + 36);
+      });
+    }
   }
 
   async function startMic(): Promise<boolean> {
@@ -777,6 +839,18 @@ export default function PopularPage() {
                         Holding the phrase: {lineHold}%
                       </p>
                     </div>
+                  )}
+                  {lrc && phase === "performing" && (
+                    <>
+                      <canvas
+                        ref={tileCanvas}
+                        className="mx-auto mt-4 h-24 w-full max-w-2xl rounded-3xl border border-white/10 bg-black/40"
+                      />
+                      <p className="mt-2 text-[11px] text-[#8a8a94]">
+                        Tiles fall in time with the words — sing in your
+                        zone as each one lands
+                      </p>
+                    </>
                   )}
                 </div>
               )}
