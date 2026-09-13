@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import BottomNav from "./components/BottomNav";
@@ -16,6 +16,16 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SongMatch — Sing what suits your voice",
   description: "Scan your vocal range, get songs matched to your voice, and perform them in karaoke mode.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "SongMatch",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#070708",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
