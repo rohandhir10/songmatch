@@ -87,7 +87,7 @@ export function parseLrc(text: string): LrcSong {
 export function activeLyric(
   song: LrcSong,
   t: number
-): { text: string; next: string | null } | null {
+): { text: string; next: string | null; index: number } | null {
   const lines = song.lines;
   if (lines.length === 0 || t < lines[0].t) return null;
 
@@ -99,5 +99,6 @@ export function activeLyric(
   return {
     text: lines[current].text,
     next: current + 1 < lines.length ? lines[current + 1].text : null,
+    index: current,
   };
 }

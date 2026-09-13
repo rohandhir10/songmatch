@@ -10,6 +10,11 @@ import LevelPicker from "../components/LevelPicker";
 import LyricsField from "../components/LyricsField";
 import { activeLyric, parseLrc, wordTimings, type LrcSong } from "@/lib/lrc";
 import { cacheLrc, cachedLrc, fetchLrcText } from "@/lib/lyrics";
+import {
+  loadOffset,
+  offsetKey,
+  stepOffset,
+} from "@/lib/lyricOffset";
 import { arrangeForLevel, type Level } from "@/lib/levels";
 import { scoreSongPerformance } from "@/lib/matching";
 import { monitorBleed } from "@/lib/miccheck";
@@ -69,18 +74,8 @@ export default function PopularPage() {
   const allFrames = useRef<Array<number | null>>([]);
   const uiTick = useRef(frameGate(4));
   const canvas = useRef<HTMLCanvasElement | null>(null);
-  function offsetKey(s: PopularSong | null, vid: string): string {
-    return `songmatch-offset:${s ? s.id : `link:${vid}`}`;
-  }
-
-  function loadOffset(s: PopularSong | null, vid: string): number {
-    try {
-      const raw = localStorage.getItem(offsetKey(s, vid));
-      const v = raw === null ? 0 : Number(raw);
-      return Number.isFinite(v) ? Math.max(-10, Math.min(10, v)) : 0;
-    } catch {
-      return 0;
-    }
+  function currentOffsetKey(): string {
+    return offsetKey(songRef.current?.id ?? null, videoId);
   }
   const songRef = useRef<PopularSong | null>(null);
   songRef.current = song;
@@ -492,7 +487,9 @@ export default function PopularPage() {
     setLyricsState("idle");
     songTime.current = 0;
     lastTick.current = 0;
-    setLyricOffset(loadOffset(songRef.current, videoId));
+    setLyricOffset(
+      loadOffset(localStorage, songRef.current?.id ?? null, videoId)
+    );
     ytPlayer.current = null;
     setNote("—");
     setRunId((r) => r + 1); // restart the video from the top
@@ -883,12 +880,9 @@ export default function PopularPage() {
                           <button
                             onClick={() =>
                               setLyricOffset((o) => {
-                                const v = Math.max(-10, +(o - 0.5).toFixed(1));
+                                const v = stepOffset(o, -1);
                                 try {
-                                  localStorage.setItem(
-                                    offsetKey(songRef.current, videoId),
-                                    String(v)
-                                  );
+                                  localStorage.setItem(currentOffsetKey(), String(v));
                                 } catch {
                                   // ignore
                                 }
@@ -907,12 +901,9 @@ export default function PopularPage() {
                           <button
                             onClick={() =>
                               setLyricOffset((o) => {
-                                const v = Math.min(10, +(o + 0.5).toFixed(1));
+                                const v = stepOffset(o, 1);
                                 try {
-                                  localStorage.setItem(
-                                    offsetKey(songRef.current, videoId),
-                                    String(v)
-                                  );
+                                  localStorage.setItem(currentOffsetKey(), String(v));
                                 } catch {
                                   // ignore
                                 }
