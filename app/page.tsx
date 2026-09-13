@@ -46,15 +46,9 @@ export default function Home() {
                 href="/popular"
                 className="inline-block rounded-2xl bg-[#c8ff3d]/15 px-6 py-3 text-sm font-black text-[#c8ff3d] transition hover:-translate-y-0.5"
               >
-                Sing popular songs →
+                Sing — shelf songs or your music →
               </Link>
             </div>
-            <Link
-              href="/singalong"
-              className="inline-block text-sm font-bold text-[#b8b8c0] hover:text-white hover:underline"
-            >
-              or sing along to your own music files
-            </Link>
           </div>
         </section>
 

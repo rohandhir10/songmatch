@@ -8,6 +8,7 @@ import { GENRES, popularSongs, type Genre, type PopularSong } from "@/lib/popula
 import MicCheckGate from "../components/MicCheckGate";
 import LevelPicker from "../components/LevelPicker";
 import LyricsField from "../components/LyricsField";
+import SingAlongPage from "../singalong/page";
 import { activeLyric, parseLrc, wordTimings, type LrcSong } from "@/lib/lrc";
 import { cacheLrc, cachedLrc, fetchLrcText } from "@/lib/lyrics";
 import {
@@ -62,6 +63,7 @@ export default function PopularPage() {
   const [runId, setRunId] = useState(0);
   const [bleedWarn, setBleedWarn] = useState(false);
   const [level, setLevel] = useState<Level>("Standard");
+  const [sourceTab, setSourceTab] = useState<"shelf" | "own">("shelf");
   const [lrc, setLrc] = useState<LrcSong | null>(null);
   const [lyric, setLyric] = useState<{
     text: string;
@@ -766,18 +768,43 @@ export default function PopularPage() {
             your pitch live and score you. Wear earbuds so the mic hears
             you, not the track.
           </p>
-          <Link
-            href="/singalong"
-            className="mx-auto mt-4 block max-w-xl rounded-2xl border border-[#c8ff3d]/25 bg-[#c8ff3d]/[0.05] p-4 text-sm leading-6 text-[#b8b8c0] transition hover:bg-[#c8ff3d]/[0.08]"
+          <div
+            role="tablist"
+            aria-label="Song source"
+            className="mx-auto mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.04] p-1"
           >
-            Want the full karaoke loop — backing track, lyrics and
-            hit-the-word scoring?{" "}
-            <span className="font-black text-[#c8ff3d]">
-              Bring your own audio file →
-            </span>
-          </Link>
+            <button
+              role="tab"
+              aria-selected={sourceTab === "shelf"}
+              onClick={() => setSourceTab("shelf")}
+              className={
+                sourceTab === "shelf"
+                  ? "rounded-full bg-[#c8ff3d] px-5 py-2 text-sm font-black text-black"
+                  : "rounded-full px-5 py-2 text-sm font-bold text-[#b8b8c0] hover:text-white"
+              }
+            >
+              Shelf songs
+            </button>
+            <button
+              role="tab"
+              aria-selected={sourceTab === "own"}
+              onClick={() => setSourceTab("own")}
+              className={
+                sourceTab === "own"
+                  ? "rounded-full bg-[#c8ff3d] px-5 py-2 text-sm font-black text-black"
+                  : "rounded-full px-5 py-2 text-sm font-bold text-[#b8b8c0] hover:text-white"
+              }
+            >
+              Your music
+            </button>
+          </div>
+          {sourceTab === "own" && (
+            <div className="mt-6 text-left">
+              <SingAlongPage />
+            </div>
+          )}
 
-          {error && (
+          {sourceTab === "shelf" && error && (
             <p
               role="alert"
               className="mx-auto mt-6 max-w-md rounded-2xl border border-[#ff5c69]/30 bg-[#ff5c69]/10 p-4 text-sm leading-6 text-[#ffb3ba]"
@@ -786,7 +813,7 @@ export default function PopularPage() {
             </p>
           )}
 
-          {phase === "pick" && (
+          {phase === "pick" && sourceTab === "shelf" && (
             <div className="mt-10 text-left">
               <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
                 <div className="text-sm font-black">Paste a YouTube link</div>
@@ -977,8 +1004,9 @@ export default function PopularPage() {
             </div>
           )}
 
-          {(phase === "performing" || phase === "scored") && (
-            <div className="mt-10">
+          {(phase === "performing" || phase === "scored") &&
+            sourceTab === "shelf" && (
+              <div className="mt-10">
               {song && (
                 <div className="text-xl font-black">
                   {song.title}{" "}
@@ -1058,7 +1086,15 @@ export default function PopularPage() {
                             : "No chart yet — hum along once to place tiles at pitch"}
                         </p>
                         <button
-                          onClick={() => setCharting((c) => !c)}
+                          onClick={() => {
+                            if (!charting && chart) {
+                              const ok = window.confirm(
+                                "Replace your charted notes for this song with a new hum?"
+                              );
+                              if (!ok) return;
+                            }
+                            setCharting((c) => !c);
+                          }}
                           aria-pressed={charting}
                           title={
                             charting
@@ -1077,6 +1113,32 @@ export default function PopularPage() {
                               ? "Re-chart"
                               : "Chart this song"}
                         </button>
+                        {chart && !charting && (
+                          <button
+                            onClick={() => {
+                              const ok = window.confirm(
+                                "Delete your charted notes for this song?"
+                              );
+                              if (!ok) return;
+                              try {
+                                localStorage.removeItem(
+                                  chartKey(
+                                    songRef.current?.id ?? null,
+                                    videoId
+                                  )
+                                );
+                              } catch {
+                                // ignore
+                              }
+                              setChart(null);
+                            }}
+                            aria-label="Delete chart"
+                            title="Delete your charted notes"
+                            className="shrink-0 rounded-full border border-white/10 px-3 py-2 text-xs font-bold text-[#8a8a94] hover:text-white min-h-[44px]"
+                          >
+                            ✕
+                          </button>
+                        )}
                       </div>
                       <canvas
                         ref={tileCanvas}

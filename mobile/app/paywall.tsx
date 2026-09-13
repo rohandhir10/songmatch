@@ -35,7 +35,11 @@ export default function Paywall() {
     setBusy(true);
     try {
       if (await buyPackage(pkg)) router.back();
-      else Alert.alert("No charge made", "The purchase didn't complete.");
+      else
+        Alert.alert(
+          "No charge made",
+          "If you cancelled, nothing happened. Otherwise check your connection and try again."
+        );
     } finally {
       setBusy(false);
     }
@@ -75,22 +79,22 @@ export default function Paywall() {
         packs.map((p) => (
           <TouchableOpacity
             key={p.identifier}
-            style={s.cta}
+            style={[s.cta, busy && s.ctaBusy]}
             disabled={busy}
             onPress={() => buy(p)}
           >
             <Text style={s.ctaText}>
-              {p.product.title} · {p.product.priceString}
+              {busy
+                ? "Working…"
+                : `${p.product.title} · ${p.product.priceString}`}
             </Text>
           </TouchableOpacity>
         ))
       )}
 
-      {packs.length > 0 && (
-        <TouchableOpacity disabled={busy} onPress={onRestore}>
-          <Text style={s.restore}>Restore purchase</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity disabled={busy} onPress={onRestore}>
+        <Text style={s.restore}>Restore purchase</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -115,6 +119,7 @@ const s = StyleSheet.create({
     padding: 18,
     alignItems: "center",
   },
+  ctaBusy: { opacity: 0.6 },
   ctaText: { color: "#000", fontWeight: "900", fontSize: 16 },
   restore: { marginTop: 20, color: theme.muted, textAlign: "center" },
 });
