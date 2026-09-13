@@ -11,6 +11,10 @@ export type VocalProfile = {
 
   voiceType: string;
 
+  // Voice weight ("Deep & dark" / "Warm" / "Light & bright") — same range,
+  // different instrument. Measured in the scan, absent on older profiles.
+  weight?: string;
+
   sampleCount: number;
 };
 
@@ -246,7 +250,8 @@ function classifyVoice(
 }
 
 export function buildVocalProfile(
-  frequencies: number[]
+  frequencies: number[],
+  weightLabel?: string
 ): VocalProfile | null {
   const samples = cleanSamples(frequencies);
 
@@ -282,5 +287,9 @@ export function buildVocalProfile(
     ),
 
     sampleCount: samples.length,
+
+    // Voice weight travels with the profile when provided: the scan
+    // measures brightness, the profile carries the plain-words label.
+    ...(weightLabel ? { weight: weightLabel } : {}),
   };
 }

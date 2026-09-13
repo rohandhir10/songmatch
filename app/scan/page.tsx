@@ -13,6 +13,9 @@ import {
   smoothFrequencies,
   type VocalProfile,
 } from "@/lib/pitch";
+import {
+  brightnessLabel,
+} from "@/lib/timbre";
 
 export default function ScanPage() {
   const [recording, setRecording] = useState(false);
@@ -41,6 +44,26 @@ export default function ScanPage() {
 
   const samples =
     useRef<number[]>([]);
+
+  const centroids =
+    useRef<number[]>([]);
+
+  const freqBins =
+    useRef<Float32Array>(new Float32Array(1024));
+
+  // The singer's brightness, self-normalized: where their mean centroid
+  // sits between their own darkest and brightest frames. Mics and rooms
+  // shift absolute spectra; relative position survives them.
+  function weightOf(values: number[]): string | undefined {
+    if (values.length < 5) return undefined;
+    const sorted = [...values].sort((a, b) => a - b);
+    const lo = sorted[0];
+    const hi = sorted[sorted.length - 1];
+    if (!(hi > lo)) return undefined;
+    const mean =
+      values.reduce((sum, v) => sum + v, 0) / values.length;
+    return brightnessLabel((mean - lo) / (hi - lo));
+  }
 
   const recent =
     useRef<number[]>([]);
@@ -100,6 +123,7 @@ export default function ScanPage() {
       analyser.current = node;
 
       samples.current = [];
+      centroids.current = [];
       recent.current = [];
       line.current = [];
       setCents(null);
@@ -199,6 +223,24 @@ export default function ScanPage() {
     if (detected >= 70 && detected <= 600) {
       samples.current.push(detected);
 
+      // Voice weight: spectral centroid of this frame in Hz. dB bins go
+      // linear first — averaging decibels would underweight the highs.
+      analyser.current.getFloatFrequencyData(freqBins.current);
+      const hzPerBin =
+        audioContext.current.sampleRate / analyser.current.fftSize;
+      let energy = 0;
+      let weighted = 0;
+      for (let i = 0; i < freqBins.current.length; i++) {
+        const db = freqBins.current[i];
+        if (db <= -100) continue;
+        const mag = Math.pow(10, db / 20);
+        energy += mag;
+        weighted += mag * i * hzPerBin;
+      }
+      if (energy > 0) {
+        centroids.current.push(weighted / energy);
+      }
+
       // Display the trailing median, not the raw frame — vibrato and
       // single-frame pops make the raw readout flicker and look wrong
       // even when detection itself is accurate.
@@ -251,7 +293,8 @@ export default function ScanPage() {
 
     const result =
       buildVocalProfile(
-        samples.current
+        samples.current,
+        weightOf(centroids.current)
       );
 
     if (!result) {
@@ -440,7 +483,15 @@ export default function ScanPage() {
 
                   <p className="mt-3 text-[#b8b8c0]">
                     Your usable vocal range · {profile.voiceType}
+                    {profile.weight ? ` · ${profile.weight}` : ""}
                   </p>
+                  {profile.weight && (
+                    <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-[#8a8a94]">
+                      Same range, different instrument: a {profile.weight.toLowerCase()} voice
+                      suits different songs than other {profile.voiceType.toLowerCase()} voices.
+                      Matches below are still by range — weight guidance is coming.
+                    </p>
+                  )}
 
                 </div>
 
