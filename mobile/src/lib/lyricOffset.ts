@@ -31,3 +31,20 @@ export function loadOffset(
     return 0;
   }
 }
+
+// Auto-sync: the singer's line onsets run a steady human delay behind the
+// beat they aim at. Given observed (expected, actual) onset pairs, returns
+// the offset delta that would put the median onset 0.4s after its tile —
+// close enough to feel locked, loose enough to forgive slow starters.
+// Null when fewer than 3 lines observed.
+export function suggestOffset(
+  onsets: Array<{ expected: number; actual: number }>
+): number | null {
+  if (onsets.length < 3) return null;
+  const lags = onsets
+    .map((o) => o.actual - o.expected)
+    .sort((a, b) => a - b);
+  const median = lags[Math.floor(lags.length / 2)];
+  if (!Number.isFinite(median)) return null;
+  return clampOffset(Math.round((median - 0.4) * 10) / 10);
+}

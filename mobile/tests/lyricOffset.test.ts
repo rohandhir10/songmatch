@@ -5,6 +5,7 @@ import {
   loadOffset,
   offsetKey,
   stepOffset,
+  suggestOffset,
 } from "../src/lib/lyricOffset.ts";
 
 describe("lyricOffset", () => {
@@ -47,6 +48,35 @@ describe("lyricOffset", () => {
         "abc"
       ),
       0
+    );
+  });
+
+  it("suggests offset from voice onsets, needs 3 lines", () => {
+    assert.equal(suggestOffset([]), null);
+    assert.equal(
+      suggestOffset([
+        { expected: 10, actual: 11 },
+        { expected: 20, actual: 21 },
+      ]),
+      null
+    );
+    // Singer lands ~1s after each tile: shift tiles later by 0.6.
+    assert.equal(
+      suggestOffset([
+        { expected: 10, actual: 11 },
+        { expected: 20, actual: 21.1 },
+        { expected: 30, actual: 30.9 },
+      ]),
+      0.6
+    );
+    // Outlier onset doesn't drag the median.
+    assert.equal(
+      suggestOffset([
+        { expected: 10, actual: 11 },
+        { expected: 20, actual: 25 },
+        { expected: 30, actual: 31 },
+      ]),
+      0.6
     );
   });
 });

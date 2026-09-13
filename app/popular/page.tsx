@@ -11,9 +11,11 @@ import LyricsField from "../components/LyricsField";
 import { activeLyric, parseLrc, wordTimings, type LrcSong } from "@/lib/lrc";
 import { cacheLrc, cachedLrc, fetchLrcText } from "@/lib/lyrics";
 import {
+  clampOffset,
   loadOffset,
   offsetKey,
   stepOffset,
+  suggestOffset,
 } from "@/lib/lyricOffset";
 import { arrangeForLevel, type Level } from "@/lib/levels";
 import { scoreSongPerformance } from "@/lib/matching";
@@ -91,6 +93,9 @@ export default function PopularPage() {
   const sungRef = useRef<Array<{ t: number; hz: number }>>([]);
   const [lineHold, setLineHold] = useState<number | null>(null);
   const tileCanvas = useRef<HTMLCanvasElement | null>(null);
+  const onsetsRef = useRef<Array<{ expected: number; actual: number }>>([]);
+  const onsetLinesRef = useRef<Set<number>>(new Set());
+  const [onsetCount, setOnsetCount] = useState(0);
   const arrangedRef = useRef<PopularSong | null>(null);
   arrangedRef.current = song ? { ...song, ...arrangeForLevel(song, level) } : null;
 
@@ -320,6 +325,17 @@ export default function PopularPage() {
         if (lrcRef.current) {
           const now = activeLyric(lrcRef.current, tEff);
           setLyric(now);
+          // Onset capture for auto-sync: first voiced frame of each line.
+          if (now && !onsetLinesRef.current.has(now.index)) {
+            onsetLinesRef.current.add(now.index);
+            onsetsRef.current.push({
+              expected: lrcRef.current.lines[now.index].t,
+              actual: tEff,
+            });
+            if (onsetsRef.current.length <= 12) {
+              setOnsetCount(onsetsRef.current.length);
+            }
+          }
           // Hold-the-phrase: % of this line sung inside the zone.
           const zone = arrangedRef.current;
           if (now && zone) {
@@ -484,6 +500,9 @@ export default function PopularPage() {
     setLrc(null);
     setLineHold(null);
     sungRef.current = [];
+    onsetsRef.current = [];
+    onsetLinesRef.current = new Set();
+    setOnsetCount(0);
     setLyricsState("idle");
     songTime.current = 0;
     lastTick.current = 0;
@@ -877,6 +896,36 @@ export default function PopularPage() {
                           aria-label="Lyric sync"
                           className="flex shrink-0 items-center gap-1.5"
                         >
+                          <button
+                            onClick={() => {
+                              const delta = suggestOffset(onsetsRef.current);
+                              if (delta === null) return;
+                              const v = clampOffset(
+                                offsetRef.current + delta
+                              );
+                              try {
+                                localStorage.setItem(
+                                  currentOffsetKey(),
+                                  String(v)
+                                );
+                              } catch {
+                                // ignore
+                              }
+                              setLyricOffset(v);
+                              onsetsRef.current = [];
+                              onsetLinesRef.current = new Set();
+                              setOnsetCount(0);
+                            }}
+                            disabled={onsetCount < 3}
+                            title={
+                              onsetCount < 3
+                                ? `Sing ${3 - onsetCount} more lines to auto-sync`
+                                : "Shift tiles to match your voice"
+                            }
+                            className="rounded-full border border-[#c8ff3d]/40 px-2.5 py-1 text-xs font-black text-[#c8ff3d] hover:bg-[#c8ff3d]/10 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Auto{onsetCount < 3 ? ` ${onsetCount}/3` : ""}
+                          </button>
                           <button
                             onClick={() =>
                               setLyricOffset((o) => {
