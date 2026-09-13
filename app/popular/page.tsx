@@ -389,9 +389,15 @@ export default function PopularPage() {
 
     const lo = 440 * Math.pow(2, (zone.tessituraLowMidi - 69) / 12);
     const hi = 440 * Math.pow(2, (zone.tessituraHighMidi - 69) / 12);
-    // Zone band across the middle third.
-    const bandTop = H * 0.28;
-    const bandH = H * 0.44;
+    // Pitch axis: an octave below the zone to an octave above, so the
+    // voice trace has room to move like a song does.
+    const loMidi = zone.tessituraLowMidi - 12;
+    const hiMidi = zone.tessituraHighMidi + 12;
+    const yOfMidi = (m: number) =>
+      H - ((m - loMidi) / Math.max(1, hiMidi - loMidi)) * H;
+    // Zone band from its true pitch edges.
+    const bandTop = yOfMidi(zone.tessituraHighMidi);
+    const bandH = yOfMidi(zone.tessituraLowMidi) - bandTop;
     ctx.fillStyle = "rgba(200,255,61,0.07)";
     ctx.fillRect(0, bandTop, W, bandH);
     ctx.fillStyle = "rgba(200,255,61,0.25)";
@@ -443,6 +449,24 @@ export default function PopularPage() {
         ctx.textAlign = "left";
         ctx.fillText(w.word.slice(0, 12), x + 14, tileY + 34);
       });
+    }
+
+    // The singer's own pitch trace, scrolling with the lane — this is the
+    // line that moves like a song does. Keep it inside the shaded band.
+    const trail = sungRef.current.filter((s) => s.t >= t - 4 && s.t <= t);
+    if (trail.length > 1) {
+      ctx.lineWidth = 5;
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "#fff";
+      ctx.beginPath();
+      trail.forEach((s, i) => {
+        const m = 69 + 12 * Math.log2(s.hz / 440);
+        const x = xOf(s.t);
+        const y = Math.max(4, Math.min(H - 4, yOfMidi(m)));
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
     }
   }
 
@@ -903,8 +927,8 @@ export default function PopularPage() {
                       />
                       <div className="mx-auto mt-2 flex max-w-2xl items-center justify-between gap-3">
                         <p className="text-[11px] text-[#8a8a94]">
-                          Tiles ride your zone to the hit line — sing
-                          in-zone as each one lands
+                          White line is your voice — ride it through the
+                          shaded zone as the tiles land
                         </p>
                         <div
                           role="group"
