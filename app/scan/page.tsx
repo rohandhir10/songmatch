@@ -49,7 +49,7 @@ export default function ScanPage() {
     useRef<number[]>([]);
 
   const freqBins =
-    useRef<Float32Array>(new Float32Array(1024));
+    useRef<Float32Array<ArrayBuffer>>(new Float32Array(1024));
 
   // The singer's brightness, self-normalized: where their mean centroid
   // sits between their own darkest and brightest frames. Mics and rooms
