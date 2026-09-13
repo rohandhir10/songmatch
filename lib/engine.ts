@@ -3,7 +3,7 @@
 // fireAndForget warmup at mic start (async WASM init); detect() stays
 // sync per frame and uses whichever engine is ready. No page ever blocks
 // on WASM, and no page ever loses pitch if WASM fails.
-import { detectPitch } from "./pitch.ts";
+import { detectPitch } from "./pitch";
 
 type AubioPitch = {
   do(buffer: Float32Array): number;
