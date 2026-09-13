@@ -1,45 +1,35 @@
-// Pitch engine: Aubio's yinfft behind the same sync call signature the
-// pages already use, with the battle-tested autocorrelator as fallback.
-// fireAndForget warmup at mic start (async WASM init); detect() stays
-// sync per frame and uses whichever engine is ready. No page ever blocks
-// on WASM, and no page ever loses pitch if WASM fails.
+// Pitch engine: textbook YIN (pitchfinder, pure JS, zero native deps)
+// behind the same sync call signature the pages already use, with the
+// battle-tested autocorrelator as fallback. Detectors are cheap to build
+// and stateless, so one is cached per sample rate. No async init, no
+// WASM, no bundle risk — it runs identically on web, Metro and Node.
+import { YIN } from "pitchfinder";
 import { detectPitch } from "./pitch";
 
-type AubioPitch = {
-  do(buffer: Float32Array): number;
-};
+type Detector = (frame: Float32Array) => number | null;
 
-const instances = new Map<number, AubioPitch>();
-let warming: Promise<void> | null = null;
+const detectors = new Map<number, Detector>();
 
-async function ensure(sampleRate: number): Promise<void> {
-  if (instances.has(sampleRate)) return;
-  if (!warming) {
-    warming = (async () => {
-      try {
-        const mod = await import("aubiojs");
-        const factory = mod.default ?? mod;
-        const A = await factory();
-        for (const sr of [44100, 48000, 22050, 16000, 96000]) {
-          try {
-            instances.set(sr, new A.Pitch("yinfft", 2048, 512, sr));
-          } catch {
-            // One bad rate never blocks the others.
-          }
-        }
-      } catch {
-        // WASM unavailable: autocorrelator carries every page.
-      } finally {
-        warming = null;
-      }
-    })();
+function ensure(sampleRate: number): Detector | null {
+  const hit = detectors.get(sampleRate);
+  if (hit) return hit;
+  try {
+    const detect = YIN({ sampleRate }) as Detector;
+    detectors.set(sampleRate, detect);
+    return detect;
+  } catch {
+    return null;
   }
-  await warming;
 }
 
-// Call once when the mic opens; never awaited by the loop.
+// Call once when the mic opens so the first frame is already fast.
+// Safe to call repeatedly; never throws.
 export function warmEngine(sampleRate: number): void {
-  void ensure(sampleRate);
+  try {
+    ensure(sampleRate);
+  } catch {
+    // Autocorrelator carries every page.
+  }
 }
 
 // Sync per-frame detect. Same contract as detectPitch: NaN when unvoiced.
@@ -47,11 +37,13 @@ export function detectEngine(
   frame: Float32Array,
   sampleRate: number
 ): number {
-  const inst = instances.get(sampleRate);
-  if (inst) {
+  const detect = ensure(sampleRate);
+  if (detect) {
     try {
-      const f = inst.do(frame);
-      if (Number.isFinite(f) && f >= 70 && f <= 1200) return f;
+      const f = detect(frame);
+      if (typeof f === "number" && Number.isFinite(f) && f >= 70 && f <= 1200) {
+        return f;
+      }
     } catch {
       // Fall through to the autocorrelator.
     }
@@ -60,5 +52,5 @@ export function detectEngine(
 }
 
 export function engineReady(sampleRate: number): boolean {
-  return instances.has(sampleRate);
+  return detectors.has(sampleRate);
 }
