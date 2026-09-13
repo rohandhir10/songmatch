@@ -71,6 +71,9 @@ export default function HomePage() {
               </>
             )}
           </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+            <Link href="/starter" className="sm-btn-secondary">★ Starter songs — built in, works offline</Link>
+          </div>
         </div>
 
         <div className="sm-card">
