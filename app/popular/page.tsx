@@ -100,6 +100,7 @@ export default function PopularPage() {
   offsetRef.current = lyricOffset;
   const sungRef = useRef<Array<{ t: number; hz: number }>>([]);
   const [lineHold, setLineHold] = useState<number | null>(null);
+  const [inZone, setInZone] = useState<boolean | null>(null);
   const tileCanvas = useRef<HTMLCanvasElement | null>(null);
   const [chart, setChart] = useState<ChartNote[] | null>(null);
   const chartRef = useRef<ChartNote[] | null>(null);
@@ -353,6 +354,16 @@ export default function PopularPage() {
       const tEff = songTime.current + offsetRef.current;
       if (paint) {
         setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
+        const zoneNow = arrangedRef.current;
+        if (zoneNow) {
+          const loNow =
+            440 * Math.pow(2, (zoneNow.tessituraLowMidi - 69) / 12);
+          const hiNow =
+            440 * Math.pow(2, (zoneNow.tessituraHighMidi - 69) / 12);
+          setInZone(smoothed >= loNow && smoothed <= hiNow);
+        } else {
+          setInZone(null);
+        }
         sungRef.current.push({ t: songTime.current, hz: smoothed });
         if (sungRef.current.length > 3600) {
           sungRef.current.splice(0, sungRef.current.length - 3600);
@@ -611,6 +622,7 @@ export default function PopularPage() {
     );
     ytPlayer.current = null;
     setNote("—");
+    setInZone(null);
     setRunId((r) => r + 1); // restart the video from the top
     const current = songRef.current;
     if (current) {
@@ -976,11 +988,11 @@ export default function PopularPage() {
 
           {(phase === "performing" || phase === "scored") &&
             sourceTab === "shelf" && (
-              <div className="mt-10">
+              <div className="mt-6">
               {song && (
-                <div className="text-xl font-black">
+                <div className="text-center text-sm font-bold text-[#b8b8c0]">
                   {song.title}{" "}
-                  <span className="font-normal text-[#b8b8c0]">
+                  <span className="font-normal">
                     · {song.artist}
                   </span>
                 </div>
@@ -1114,7 +1126,7 @@ export default function PopularPage() {
                       </div>
                       <canvas
                         ref={tileCanvas}
-                        className="mx-auto mt-2 h-28 w-full max-w-2xl rounded-3xl border border-white/10 bg-black/40"
+                        className="mx-auto mt-2 h-36 w-full max-w-2xl rounded-3xl border border-white/10 bg-black/40"
                       />
                       <div className="mx-auto mt-2 flex max-w-2xl items-center justify-between gap-3">
                         <p className="text-[11px] text-[#8a8a94]">
@@ -1152,7 +1164,7 @@ export default function PopularPage() {
                                 ? `Sing ${3 - onsetCount} more lines to auto-sync`
                                 : "Shift tiles to match your voice"
                             }
-                            className="rounded-full border border-[#c8ff3d]/40 px-3 py-2 min-h-[44px] text-xs font-black text-[#c8ff3d] hover:bg-[#c8ff3d]/10 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="rounded-full border border-[#c8ff3d]/40 px-3 py-2 min-h-[44px] text-xs font-black text-[#c8ff3d] hover:bg-[#c8ff3d]/10 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c8ff3d]"
                           >
                             Auto{onsetCount < 3 ? ` ${onsetCount}/3` : ""}
                           </button>
@@ -1169,7 +1181,7 @@ export default function PopularPage() {
                               })
                             }
                             aria-label="Lyrics earlier"
-                            className="rounded-full border border-white/10 px-3 py-2 min-h-[44px] text-xs font-black text-[#b8b8c0] hover:text-white"
+                            className="rounded-full border border-white/10 px-3 py-2 min-h-[44px] text-xs font-black text-[#b8b8c0] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c8ff3d]"
                           >
                             −
                           </button>
@@ -1190,7 +1202,7 @@ export default function PopularPage() {
                               })
                             }
                             aria-label="Lyrics later"
-                            className="rounded-full border border-white/10 px-3 py-2 min-h-[44px] text-xs font-black text-[#b8b8c0] hover:text-white"
+                            className="rounded-full border border-white/10 px-3 py-2 min-h-[44px] text-xs font-black text-[#b8b8c0] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c8ff3d]"
                           >
                             +
                           </button>
@@ -1201,8 +1213,18 @@ export default function PopularPage() {
                 </div>
               )}
 
-              <div className="mt-6 text-6xl font-black tracking-[-0.06em]">
-                {note}
+              <div className="mt-8 text-center text-8xl font-black tracking-[-0.07em] tabular-nums transition-colors duration-150">
+                <span
+                  className={
+                    inZone === null
+                      ? "text-white"
+                      : inZone
+                        ? "text-[#c8ff3d]"
+                        : "text-white/60"
+                  }
+                >
+                  {note}
+                </span>
               </div>
 
               {bleedWarn && (
@@ -1248,7 +1270,7 @@ export default function PopularPage() {
               {phase === "performing" && (
                 <button
                   onClick={finish}
-                  className="mx-auto mt-6 block w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.05] px-6 py-4 font-bold hover:bg-white/[0.08]"
+                  className="mx-auto mt-6 block w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.05] px-6 py-4 font-bold hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c8ff3d]"
                 >
                   Finish performance
                 </button>
