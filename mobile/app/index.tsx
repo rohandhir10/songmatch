@@ -20,6 +20,12 @@ export default function Home() {
       <Link href="/matches" style={s.ghost}>
         <Text style={s.ghostText}>View my matches</Text>
       </Link>
+      <Link href="/plans" style={s.ghost}>
+        <Text style={s.ghostText}>Training plans</Text>
+      </Link>
+      <Link href="/progress" style={s.ghost}>
+        <Text style={s.ghostText}>My progress</Text>
+      </Link>
     </View>
   );
 }
