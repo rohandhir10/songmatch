@@ -371,10 +371,11 @@ export default function PopularPage() {
     animationFrame.current = requestAnimationFrame(detectLoop);
   }
 
-  // Piano-tiles lane: word tiles fall to the hit line in time with the
-  // lyrics. A tile flashes green when the voice is inside the zone as it
-  // lands, amber when sung off-zone, grey when missed. Timing + control,
-  // never a claim about the original's melody.
+  // Note lane: word tiles ride right-to-left along the middle of your
+  // zone band and cross the hit line in time with the lyrics. Green when
+  // the voice is inside the zone as a tile lands, amber when sung
+  // off-zone, grey when missed. Timing + control, never a claim about
+  // the original's melody.
   function drawTiles(t: number) {
     const el = tileCanvas.current;
     const lrc = lrcRef.current;
@@ -388,25 +389,34 @@ export default function PopularPage() {
 
     const lo = 440 * Math.pow(2, (zone.tessituraLowMidi - 69) / 12);
     const hi = 440 * Math.pow(2, (zone.tessituraHighMidi - 69) / 12);
-    // 2s window falling to the hit line at the bottom.
-    const yOf = (tt: number) => H - ((tt - t) / 2) * (H - 20) - 10;
-    const hitY = yOf(t);
+    // Zone band across the middle third.
+    const bandTop = H * 0.28;
+    const bandH = H * 0.44;
+    ctx.fillStyle = "rgba(200,255,61,0.07)";
+    ctx.fillRect(0, bandTop, W, bandH);
+    ctx.fillStyle = "rgba(200,255,61,0.25)";
+    ctx.fillRect(0, bandTop - 2, W, 3);
+    ctx.fillRect(0, bandTop + bandH - 1, W, 3);
 
-    ctx.fillStyle = "rgba(200,255,61,0.35)";
-    ctx.fillRect(0, hitY - 2, W, 4);
+    // 1s of past, 3s of future; the hit line sits 25% from the left.
+    const xOf = (tt: number) => ((tt - (t - 1)) / 4) * W;
+    const hitX = xOf(t);
+    ctx.fillStyle = "rgba(200,255,61,0.5)";
+    ctx.fillRect(hitX - 2, 0, 4, H);
 
+    const tileH = 52;
+    const tileY = bandTop + bandH / 2 - tileH / 2;
     const lines = lrc.lines;
     let li = 0;
     while (li < lines.length - 1 && lines[li + 1].t <= t) li++;
-    for (let k = Math.max(0, li - 1); k < Math.min(lines.length, li + 3); k++) {
+    for (let k = Math.max(0, li - 1); k < Math.min(lines.length, li + 4); k++) {
       const nextStart = k + 1 < lines.length ? lines[k + 1].t : null;
       const words = wordTimings(lines[k], nextStart);
-      const n = Math.max(1, words.length);
       words.forEach((w, i) => {
-        if (w.t < t - 0.6 || w.t > t + 2) return;
-        const tw = W / n;
-        const x = i * tw + 6;
-        const y = yOf(w.t) - 30;
+        if (w.t < t - 1 || w.t > t + 3) return;
+        const wEnd = i + 1 < words.length ? words[i + 1].t : (nextStart ?? w.t + 1.5);
+        const x = xOf(w.t);
+        const wpx = Math.max(56, xOf(Math.min(wEnd, w.t + 2.5)) - x);
         const landed = w.t <= t;
         let fill = "rgba(255,255,255,0.22)";
         if (landed) {
@@ -420,13 +430,18 @@ export default function PopularPage() {
         }
         ctx.fillStyle = fill;
         ctx.beginPath();
-        ctx.roundRect(x, y, tw - 12, 56, 12);
+        ctx.roundRect(x, tileY, wpx, tileH, 14);
         ctx.fill();
+        if (!landed && x < hitX) {
+          ctx.strokeStyle = "rgba(255,255,255,0.35)";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
         ctx.fillStyle =
-          fill === "#c8ff3d" ? "#000" : "rgba(255,255,255,0.85)";
-        ctx.font = "bold 22px system-ui";
-        ctx.textAlign = "center";
-        ctx.fillText(w.word.slice(0, 10), x + (tw - 12) / 2, y + 36);
+          fill === "#c8ff3d" ? "#000" : "rgba(255,255,255,0.9)";
+        ctx.font = "bold 24px system-ui";
+        ctx.textAlign = "left";
+        ctx.fillText(w.word.slice(0, 12), x + 14, tileY + 34);
       });
     }
   }
@@ -884,12 +899,12 @@ export default function PopularPage() {
                     <>
                       <canvas
                         ref={tileCanvas}
-                        className="mx-auto mt-4 h-24 w-full max-w-2xl rounded-3xl border border-white/10 bg-black/40"
+                        className="mx-auto mt-4 h-28 w-full max-w-2xl rounded-3xl border border-white/10 bg-black/40"
                       />
                       <div className="mx-auto mt-2 flex max-w-2xl items-center justify-between gap-3">
                         <p className="text-[11px] text-[#8a8a94]">
-                          Tiles fall in time with the words — sing in your
-                          zone as each one lands
+                          Tiles ride your zone to the hit line — sing
+                          in-zone as each one lands
                         </p>
                         <div
                           role="group"
