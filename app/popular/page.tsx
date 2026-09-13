@@ -348,10 +348,12 @@ export default function PopularPage() {
       const list = smoothFrequencies(recent.current, 5);
       const smoothed = list[list.length - 1] ?? detected;
       // Effective lyric time: player clock plus the user's per-song nudge.
+      // Voice samples keep the RAW clock; the offset applies at render
+      // and judgment time, so stored charts never bake in a nudge.
       const tEff = songTime.current + offsetRef.current;
       if (paint) {
         setNote(midiToNote(69 + 12 * Math.log2(smoothed / 440)));
-        sungRef.current.push({ t: tEff, hz: smoothed });
+        sungRef.current.push({ t: songTime.current, hz: smoothed });
         if (sungRef.current.length > 3600) {
           sungRef.current.splice(0, sungRef.current.length - 3600);
         }
@@ -370,9 +372,11 @@ export default function PopularPage() {
             }
           }
           // Hold-the-phrase: % of this line sung inside the zone.
+          // Samples are raw-clock; shift them into lyric space here.
           const zone = arrangedRef.current;
           if (now && zone) {
             const lines = lrcRef.current.lines;
+            const off = offsetRef.current;
             const end =
               now.index + 1 < lines.length
                 ? lines[now.index + 1].t
@@ -380,7 +384,7 @@ export default function PopularPage() {
             const lo = 440 * Math.pow(2, (zone.tessituraLowMidi - 69) / 12);
             const hi = 440 * Math.pow(2, (zone.tessituraHighMidi - 69) / 12);
             const inLine = sungRef.current.filter(
-              (s) => s.t >= lines[now.index].t && s.t < end
+              (s) => s.t + off >= lines[now.index].t && s.t + off < end
             );
             setLineHold(
               inLine.length === 0
@@ -421,6 +425,10 @@ export default function PopularPage() {
     const H = (el.height = 200);
     ctx.clearRect(0, 0, W, H);
 
+    // Word tiles live in lyric space; voice samples are raw-clock.
+    // Charts are stored raw and shifted here, so a later nudge moves
+    // chart and lyrics together instead of tearing them apart.
+    const off = offsetRef.current;
     const lo = 440 * Math.pow(2, (zone.tessituraLowMidi - 69) / 12);
     const hi = 440 * Math.pow(2, (zone.tessituraHighMidi - 69) / 12);
     // Pitch axis: an octave below the zone to an octave above, so the
@@ -457,13 +465,15 @@ export default function PopularPage() {
           ? sungRef.current[sungRef.current.length - 1].hz
           : null;
       chartNotes.forEach((b, i) => {
-        if (b.end < t - 1 || b.start > t + 3) return;
-        const x = xOf(b.start);
-        const wpx = Math.max(30, xOf(b.end) - x);
+        const bs = b.start + off;
+        const be = b.end + off;
+        if (be < t - 1 || bs > t + 3) return;
+        const x = xOf(bs);
+        const wpx = Math.max(30, xOf(be) - x);
         const target = 440 * Math.pow(2, (b.midi - 69) / 12);
         const y = yOfMidi(b.midi) - 16;
-        const past = b.end < t;
-        const active = !past && b.start <= t;
+        const past = be < t;
+        const active = !past && bs <= t;
         let fill = "rgba(255,255,255,0.22)";
         if (past) {
           fill = judged[i]?.hit ? "#c8ff3d" : "rgba(255,92,105,0.55)";
@@ -500,7 +510,9 @@ export default function PopularPage() {
         let fill = "rgba(255,255,255,0.22)";
         if (landed) {
           const atHit = sungRef.current.filter(
-            (s) => s.t >= w.t - 0.3 && s.t <= Math.min(t, w.t + 0.3)
+            (s) =>
+              s.t + off >= w.t - 0.3 &&
+              s.t + off <= Math.min(t, w.t + 0.3)
           );
           if (atHit.length === 0) fill = "rgba(255,255,255,0.12)";
           else if (atHit.some((s) => s.hz >= lo && s.hz <= hi))
@@ -527,7 +539,9 @@ export default function PopularPage() {
 
     // The singer's own pitch trace, scrolling with the lane — this is the
     // line that moves like a song does. Keep it inside the shaded band.
-    const trail = sungRef.current.filter((s) => s.t >= t - 4 && s.t <= t);
+    const trail = sungRef.current.filter(
+      (s) => s.t + off >= t - 4 && s.t + off <= t
+    );
     if (trail.length > 1) {
       ctx.lineWidth = 5;
       ctx.lineJoin = "round";
@@ -535,7 +549,7 @@ export default function PopularPage() {
       ctx.beginPath();
       trail.forEach((s, i) => {
         const m = 69 + 12 * Math.log2(s.hz / 440);
-        const x = xOf(s.t);
+        const x = xOf(s.t + off);
         const y = Math.max(4, Math.min(H - 4, yOfMidi(m)));
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
@@ -1077,13 +1091,15 @@ export default function PopularPage() {
                       </p>
                     </div>
                   )}
-                  {(lrc || chart) && phase === "performing" && (
+                  {phase === "performing" && (
                     <>
                       <div className="mx-auto mt-4 flex max-w-2xl items-center justify-between gap-3">
                         <p className="text-[11px] text-[#8a8a94]">
                           {chart
                             ? "Your charted notes — hit them in tune"
-                            : "No chart yet — hum along once to place tiles at pitch"}
+                            : lrc
+                              ? "No chart yet — hum along once to place tiles at pitch"
+                              : "No lyrics for this one — hum along once to chart its notes, or add an .lrc above"}
                         </p>
                         <button
                           onClick={() => {
