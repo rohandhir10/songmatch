@@ -15,6 +15,11 @@ const TABS = [
     icon: "M12 3v10m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2",
   },
   {
+    href: "/learn",
+    label: "Plans",
+    icon: "M4 5h16v14H4zM8 9h8M8 13h8M8 17h5",
+  },
+  {
     href: "/popular",
     label: "Songs",
     icon: "M9 18V6l10-2v11M9 18a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Zm10-3a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z",
@@ -34,6 +39,7 @@ export default function BottomNav() {
   const tabFor = (path: string): string => {
     if (path === "/") return "/";
     if (path.startsWith("/train")) return "/train";
+    if (path.startsWith("/learn")) return "/learn";
     if (path.startsWith("/dashboard")) return "/dashboard";
     if (
       path.startsWith("/popular") ||
@@ -54,7 +60,7 @@ export default function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#070708]/95 backdrop-blur"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="mx-auto grid max-w-md grid-cols-4">
+      <div className="mx-auto grid max-w-md grid-cols-5">
         {TABS.map((tab) => {
           const active = current === tab.href;
           return (
