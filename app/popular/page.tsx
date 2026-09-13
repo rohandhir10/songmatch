@@ -11,6 +11,12 @@ import LyricsField from "../components/LyricsField";
 import { activeLyric, parseLrc, wordTimings, type LrcSong } from "@/lib/lrc";
 import { cacheLrc, cachedLrc, fetchLrcText } from "@/lib/lyrics";
 import {
+  buildChart,
+  chartKey,
+  scoreVsChart,
+  type ChartNote,
+} from "@/lib/songchart";
+import {
   clampOffset,
   loadOffset,
   offsetKey,
@@ -93,6 +99,10 @@ export default function PopularPage() {
   const sungRef = useRef<Array<{ t: number; hz: number }>>([]);
   const [lineHold, setLineHold] = useState<number | null>(null);
   const tileCanvas = useRef<HTMLCanvasElement | null>(null);
+  const [chart, setChart] = useState<ChartNote[] | null>(null);
+  const chartRef = useRef<ChartNote[] | null>(null);
+  chartRef.current = chart;
+  const [charting, setCharting] = useState(false);
   const onsetsRef = useRef<Array<{ expected: number; actual: number }>>([]);
   const onsetLinesRef = useRef<Set<number>>(new Set());
   const [onsetCount, setOnsetCount] = useState(0);
@@ -277,6 +287,27 @@ export default function PopularPage() {
     };
   }, [phase, videoId, runId]);
 
+  // Final tally against your own charted notes.
+  function ChartTally({
+    chart,
+    sung,
+  }: {
+    chart: ChartNote[];
+    sung: Array<{ t: number; hz: number }>;
+  }) {
+    const judged = scoreVsChart(chart, sung);
+    const hits = judged.filter((j) => j.hit).length;
+    const pct =
+      judged.length > 0 ? Math.round((100 * hits) / judged.length) : 0;
+    return (
+      <p className="mt-4 text-lg font-black tabular-nums">
+        🎯 {hits}/{judged.length} notes{" "}
+        <span className="text-[#c8ff3d]">{pct}%</span>{" "}
+        <span className="text-xs font-bold text-[#8a8a94]">your chart</span>
+      </p>
+    );
+  }
+
   function detectLoop() {
     if (!analyser.current || !micContext.current) return;
     const paint = uiTick.current();
@@ -380,7 +411,8 @@ export default function PopularPage() {
     const el = tileCanvas.current;
     const lrc = lrcRef.current;
     const zone = arrangedRef.current;
-    if (!el || !lrc || !zone) return;
+    const chartNotes = chartRef.current;
+    if (!el || !zone) return;
     const ctx = el.getContext("2d");
     if (!ctx) return;
     const W = (el.width = el.clientWidth * 2);
@@ -412,6 +444,45 @@ export default function PopularPage() {
 
     const tileH = 52;
     const tileY = bandTop + bandH / 2 - tileH / 2;
+
+    // Hum-charted tiles at true pitch (your version). Live hit = voice
+    // within ±60¢ of the tile as it crosses; landed tiles judged on
+    // coverage across their window.
+    if (chartNotes && chartNotes.length > 0) {
+      const judged = scoreVsChart(chartNotes, sungRef.current);
+      const liveHz =
+        sungRef.current.length > 0
+          ? sungRef.current[sungRef.current.length - 1].hz
+          : null;
+      chartNotes.forEach((b, i) => {
+        if (b.end < t - 1 || b.start > t + 3) return;
+        const x = xOf(b.start);
+        const wpx = Math.max(30, xOf(b.end) - x);
+        const target = 440 * Math.pow(2, (b.midi - 69) / 12);
+        const y = yOfMidi(b.midi) - 16;
+        const past = b.end < t;
+        const active = !past && b.start <= t;
+        let fill = "rgba(255,255,255,0.22)";
+        if (past) {
+          fill = judged[i]?.hit ? "#c8ff3d" : "rgba(255,92,105,0.55)";
+        } else if (
+          active &&
+          liveHz !== null &&
+          Math.abs(1200 * Math.log2(liveHz / target)) <= 60
+        ) {
+          fill = "#c8ff3d";
+        }
+        ctx.fillStyle = fill;
+        ctx.beginPath();
+        ctx.roundRect(x, y, wpx, 32, 10);
+        ctx.fill();
+        if (active && fill !== "#c8ff3d") {
+          ctx.strokeStyle = "rgba(255,255,255,0.8)";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      });
+    } else if (lrc) {
     const lines = lrc.lines;
     let li = 0;
     while (li < lines.length - 1 && lines[li + 1].t <= t) li++;
@@ -449,6 +520,7 @@ export default function PopularPage() {
         ctx.textAlign = "left";
         ctx.fillText(w.word.slice(0, 12), x + 14, tileY + 34);
       });
+    }
     }
 
     // The singer's own pitch trace, scrolling with the lane — this is the
@@ -542,6 +614,23 @@ export default function PopularPage() {
     onsetsRef.current = [];
     onsetLinesRef.current = new Set();
     setOnsetCount(0);
+    setCharting(false);
+    // Load this song's hum-chart if it has one.
+    try {
+      const raw = localStorage.getItem(
+        chartKey(songRef.current?.id ?? null, videoId)
+      );
+      if (raw) {
+        const parsed = JSON.parse(raw) as ChartNote[];
+        setChart(
+          Array.isArray(parsed) && parsed.length > 0 ? parsed : null
+        );
+      } else {
+        setChart(null);
+      }
+    } catch {
+      setChart(null);
+    }
     setLyricsState("idle");
     songTime.current = 0;
     lastTick.current = 0;
@@ -571,6 +660,28 @@ export default function PopularPage() {
 
   function finish() {
     cleanupMic();
+    // Charting pass: the hum becomes this song's note tiles.
+    if (charting) {
+      const built = buildChart(sungRef.current);
+      if (built.length >= 3) {
+        try {
+          localStorage.setItem(
+            chartKey(songRef.current?.id ?? null, videoId),
+            JSON.stringify(built)
+          );
+        } catch {
+          // Chart still works for this session.
+        }
+        setChart(built);
+        setError(null);
+      } else {
+        setError(
+          "Didn't catch enough melody — hum along with earbuds in and try again."
+        );
+        setPhase("pick");
+        return;
+      }
+    }
     const s = songRef.current;
     const steadiness = pitchSteadiness(frames.current);
     let view: ScoreView | null = null;
@@ -919,11 +1030,38 @@ export default function PopularPage() {
                       </p>
                     </div>
                   )}
-                  {lrc && phase === "performing" && (
+                  {(lrc || chart) && phase === "performing" && (
                     <>
+                      <div className="mx-auto mt-4 flex max-w-2xl items-center justify-between gap-3">
+                        <p className="text-[11px] text-[#8a8a94]">
+                          {chart
+                            ? "Your charted notes — hit them in tune"
+                            : "No chart yet — hum along once to place tiles at pitch"}
+                        </p>
+                        <button
+                          onClick={() => setCharting((c) => !c)}
+                          aria-pressed={charting}
+                          title={
+                            charting
+                              ? "Back to singing — your hum becomes the tiles when you finish"
+                              : "Hum along once to chart this song's notes"
+                          }
+                          className={
+                            charting
+                              ? "shrink-0 rounded-full bg-[#c8ff3d] px-3 py-1 text-xs font-black text-black"
+                              : "shrink-0 rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-[#b8b8c0] hover:text-white"
+                          }
+                        >
+                          {charting
+                            ? "● Charting… tap to sing"
+                            : chart
+                              ? "Re-chart"
+                              : "Chart this song"}
+                        </button>
+                      </div>
                       <canvas
                         ref={tileCanvas}
-                        className="mx-auto mt-4 h-28 w-full max-w-2xl rounded-3xl border border-white/10 bg-black/40"
+                        className="mx-auto mt-2 h-28 w-full max-w-2xl rounded-3xl border border-white/10 bg-black/40"
                       />
                       <div className="mx-auto mt-2 flex max-w-2xl items-center justify-between gap-3">
                         <p className="text-[11px] text-[#8a8a94]">
@@ -1075,6 +1213,9 @@ export default function PopularPage() {
                   <p className="mt-3 text-sm leading-6 text-[#b8b8c0]">
                     {score.detail}
                   </p>
+                  {chart && chart.length > 0 && (
+                    <ChartTally chart={chart} sung={sungRef.current} />
+                  )}
                   <div className="mt-6 flex flex-col gap-3">
                     <Link
                       href="/dashboard"
