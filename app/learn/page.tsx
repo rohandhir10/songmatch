@@ -13,6 +13,7 @@ import {
   planStartsKey,
   type Plan,
 } from "@/lib/curriculum";
+import { LIBRARY } from "@/lib/learnContent";
 
 function loadHistory(): PerformanceEntry[] {
   try {
@@ -66,6 +67,76 @@ export default function LearnPage() {
     } catch {
       // ignore
     }
+  }
+
+  // Curated shelf for this plan: verified videos embed, articles and
+  // channels open at the publisher. Nothing here was search-guessed.
+  function WatchRead({ planId }: { planId: string }) {
+    const items = LIBRARY.filter((c) => c.forPlans.includes(planId));
+    const [openVideo, setOpenVideo] = useState<string | null>(null);
+    if (items.length === 0) return null;
+    return (
+      <div className="mb-5 rounded-2xl border border-white/10 bg-black/30 p-5">
+        <div className="text-sm font-black tracking-wide">
+          Watch & read
+        </div>
+        <p className="mt-1 text-xs leading-5 text-[#8a8a94]">
+          Free lessons from working vocal coaches — picked for this plan.
+        </p>
+        <div className="mt-3 space-y-2">
+          {items.map((c) => (
+            <div key={c.id}>
+              {c.kind === "video" ? (
+                <>
+                  <button
+                    onClick={() =>
+                      setOpenVideo(openVideo === c.id ? null : c.id)
+                    }
+                    aria-expanded={openVideo === c.id}
+                    className="block w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left hover:bg-white/[0.06]"
+                  >
+                    <span className="text-sm font-bold">
+                      ▶ {c.title}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-[#8a8a94]">
+                      {c.source}
+                      {c.minutes ? ` · ${c.minutes} min` : ""} · {c.blurb}
+                    </span>
+                  </button>
+                  {openVideo === c.id && (
+                    <div className="mt-2 aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${c.url.split("v=")[1]?.split("&")[0]}`}
+                        title={c.title}
+                        allow="accelerometer; encrypted-media; picture-in-picture"
+                        allowFullScreen
+                        className="h-full w-full"
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <a
+                  href={c.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 hover:bg-white/[0.06]"
+                >
+                  <span className="text-sm font-bold">
+                    {c.kind === "channel" ? "📡 " : "📖 "}
+                    {c.title} ↗
+                  </span>
+                  <span className="mt-0.5 block text-xs text-[#8a8a94]">
+                    {c.source}
+                    {c.minutes ? ` · ${c.minutes} min read` : ""} · {c.blurb}
+                  </span>
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -132,6 +203,7 @@ export default function LearnPage() {
 
                 {open && (
                   <div className="mt-5">
+                    <WatchRead planId={plan.id} />
                     {!since ? (
                       <button
                         onClick={() => startPlan(plan)}
