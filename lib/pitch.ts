@@ -299,44 +299,6 @@ export function clusterFrames(frames: PitchFrame[]): AccumulatedFrame[] {
   return out;
 }
 
-// ---- spectrum-based breathiness ----
-// Rough measure: ratio of high-band energy to total energy in voiced frames.
-// Higher = more breathy/airy. Lower = more pressed/dark. Used as texture cue.
-function blitSpectrum(
-  buffer: Float32Array,
-  sampleRate: number,
-  fftSize: number,
-): Float32Array {
-  // Simple periodogram (no windowing for speed; good enough as a cue).
-  const mags = new Float32Array(fftSize / 2);
-  for (let k = 0; k < mags.length; k++) {
-    let re = 0, im = 0;
-    for (let n = 0; n < buffer.length; n++) {
-      const phase = (2 * Math.PI * k * n) / fftSize;
-      re += buffer[n] * Math.cos(phase);
-      im -= buffer[n] * Math.sin(phase);
-    }
-    mags[k] = Math.sqrt(re * re + im * im) / buffer.length;
-  }
-  return mags;
-}
-
-function breathinessOf(buffer: Float32Array, sampleRate: number): number {
-  const fftSize = 2048;
-  const mags = blitSpectrum(buffer, sampleRate, fftSize);
-  const binHz = sampleRate / fftSize;
-  let total = 0;
-  let high = 0;
-  const lowEnd = Math.max(1, Math.floor(100 / binHz));
-  const highStart = Math.floor(2000 / binHz);
-  for (let i = lowEnd; i < mags.length; i++) {
-    total += mags[i];
-    if (i >= highStart) high += mags[i];
-  }
-  if (total <= 0) return 0;
-  return Math.min(1, high / total);
-}
-
 // ---- build profile from raw pitch frames ----
 // The old buildVocalProfile took raw frequencies and trimmed the extremes.
 // The new one uses confidence + clustering to separate "comfortable" from
@@ -365,7 +327,6 @@ export function buildVocalProfile(
   let comfortableLow = Infinity;
   let comfortableHigh = -Infinity;
   const centsList: number[] = [];
-  const breathinessSum = 0;
 
   if (sustained.length === 0) {
     // Fall back to confident voiced frames if no cluster lasted long enough.
@@ -503,24 +464,6 @@ export function buildVocalProfile(
     breathiness: Math.round(breathiness * 100),
     wasSwept,
   };
-}
-
-// Legacy buildVocalProfile(rawFrequencies, weightLabel) — kept so existing
-// call sites in scan/page that pass raw number[] still compile. It now
-// converts to PitchFrame stream internally with a default confidence model
-// derived from RMS and YIN dip depth (no randomness).
-export function buildVocalProfileLegacy(
-  frequencies: number[],
-  weightLabel?: string,
-): VocalProfile | null {
-  const frames: PitchFrame[] = frequencies
-    .filter((f) => Number.isFinite(f) && f >= HZ_LOW && f <= HZ_HIGH)
-    .map((f) => {
-      const dip = Math.min(1, 0.3 + 0.7 * (1 - Math.random() * 0.3)); // placeholder confidence
-      const rms = Math.min(0.12, 0.02 + Math.random() * 0.08);
-      return { freq: f, midi: frequencyToMidi(f), confidence: dip, voiced: true, rms, dipQuality: dip };
-    });
-  return buildVocalProfile(frames, weightLabel);
 }
 
 // ---- voice classification (tessitura-based, fuller ladder) ----

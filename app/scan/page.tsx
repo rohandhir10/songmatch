@@ -16,7 +16,8 @@ import {
   type PitchFrame,
 } from "@/lib/pitch";
 import { brightnessLabel } from "@/lib/timbre";
-import { detectEngine, warmEngine } from "@/lib/engine";
+import { detectFrame } from "@/lib/pitch";
+import { warmEngine } from "@/lib/engine";
 
 export default function ScanPage() {
   const [recording, setRecording] = useState(false);
@@ -175,7 +176,7 @@ export default function ScanPage() {
     const buffer = new Float32Array(analyser.current.fftSize);
     analyser.current.getFloatTimeDomainData(buffer);
 
-    const frame = detectEngineFrame(buffer, audioContext.current.sampleRate);
+    const frame = detectFrame(buffer, audioContext.current.sampleRate);
     frames.current.push(frame);
 
     // Voice weight: spectral centroid of this frame in Hz.
