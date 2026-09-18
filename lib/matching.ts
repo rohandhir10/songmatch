@@ -27,17 +27,17 @@ function gradeFor(accuracy: number): SongPerformance["grade"] {
 // while sliding around inside the range does not.
 export function scoreSongPerformance(
   frequencies: number[],
-  song: Song
+  song: Song,
 ): SongPerformance | null {
   const frames = frequencies.filter(
-    (f) => Number.isFinite(f) && f > 0
+    (f) => Number.isFinite(f) && f > 0,
   );
   if (frames.length === 0) return null;
 
   const hold = scorePerformance(frames, song);
   const steady = pitchSteadiness(frames) ?? 0;
   const accuracy = Math.round(
-    (hold ? hold.accuracy : 0) * 0.5 + steady * 0.5
+    (hold ? hold.accuracy : 0) * 0.5 + steady * 0.5,
   );
 
   return {
@@ -62,10 +62,10 @@ export type PerformanceScore = {
 // range control, not note-by-note correctness.
 export function scorePerformance(
   frequencies: number[],
-  song: Song
+  song: Song,
 ): PerformanceScore | null {
   const frames = frequencies.filter(
-    (f) => Number.isFinite(f) && f > 0
+    (f) => Number.isFinite(f) && f > 0,
   );
   if (frames.length === 0) return null;
 
@@ -106,13 +106,25 @@ export type SongMatch = {
   recommendedTranspose: number;
 
   explanation: string;
+
+  // New: the profile used for the match, so callers can render
+  // comfortable-range vs touched-edges info alongside the score.
+  profileUsed: {
+    comfortableLowMidi: number;
+    comfortableHighMidi: number;
+    tessituraLowMidi: number;
+    tessituraHighMidi: number;
+    tessituraCenterMidi: number;
+  };
 };
 
+// Overlap of two midi bands — 0..1, how much they share relative to the
+// song's band (the narrower one sets the scale).
 function overlapScore(
   userLow: number,
   userHigh: number,
   songLow: number,
-  songHigh: number
+  songHigh: number,
 ): number {
   const start = Math.max(userLow, songLow);
   const end = Math.min(userHigh, songHigh);
@@ -124,6 +136,13 @@ function overlapScore(
   const overlap = end - start;
   const songRange = songHigh - songLow;
 
+  // If the song is narrower than a semitone (bad data), fall back to a
+  // point-in-band check instead of dividing by near-zero.
+  if (songRange < 1) {
+    const center = (songLow + songHigh) / 2;
+    return userLow <= center && userHigh >= center ? 1 : 0;
+  }
+
   return Math.min(1, overlap / songRange);
 }
 
@@ -131,7 +150,7 @@ function calculateTranspose(
   userLow: number,
   userHigh: number,
   songLow: number,
-  songHigh: number
+  songHigh: number,
 ): number {
   const userCenter = (userLow + userHigh) / 2;
   const songCenter = (songLow + songHigh) / 2;
@@ -141,32 +160,47 @@ function calculateTranspose(
 
 export function matchSong(
   profile: VocalProfile,
-  song: Song
+  song: Song,
 ): SongMatch {
+  // Range coverage: does the song fit inside the RANGE you can actually hold?
+  // Use the comfortable band (not the outer touched edges) so a brief falsetto
+  // pop at the top doesn't make a hard song look easy.
   const rangeScore =
     overlapScore(
-      profile.minMidi,
-      profile.maxMidi,
+      profile.comfortableLowMidi,
+      profile.comfortableHighMidi,
       song.vocalLowMidi,
-      song.vocalHighMidi
+      song.vocalHighMidi,
     ) * 100;
 
+  // Tessitura fit: does the song LIVE where you sound best? This is the more
+  // meaningful number for "does this feel like you." Use the measured tessitura
+  // band rather than the old 20%-of-span heuristic.
   const tessituraScore =
     overlapScore(
-      profile.minMidi,
-      profile.maxMidi,
+      profile.tessituraLowMidi,
+      profile.tessituraHighMidi,
       song.tessituraLowMidi,
-      song.tessituraHighMidi
+      song.tessituraHighMidi,
     ) * 100;
 
+  // Difficulty: harder songs expect more range + control. A tight consistency
+  // profile should be rewarded (they can handle a wide zone); a wandering one
+  // should be penalized on hard songs.
   let difficultyScore = 100;
 
   if (song.difficulty === "Medium") {
-    difficultyScore = 88;
+    difficultyScore = profile.consistency >= 65 ? 90 : 82;
   }
 
   if (song.difficulty === "Hard") {
-    difficultyScore = 72;
+    if (profile.consistency >= 70 && rangeScore >= 75) {
+      difficultyScore = 88;
+    } else if (profile.consistency >= 55) {
+      difficultyScore = 76;
+    } else {
+      difficultyScore = 64;
+    }
   }
 
   const score = Math.round(
@@ -174,19 +208,22 @@ export function matchSong(
       0,
       Math.min(
         99,
-        rangeScore * 0.45 +
+        rangeScore * 0.40 +
           tessituraScore * 0.45 +
-          difficultyScore * 0.1
-      )
-    )
+          difficultyScore * 0.15,
+      ),
+    ),
   );
 
+  // Recommended transpose: match the song's tessitura to the user's tessitura
+  // center, not their raw extremes. This keeps the key where the voice sounds
+  // best rather than where it just barely reaches.
   const recommendedTranspose =
     calculateTranspose(
-      profile.minMidi,
-      profile.maxMidi,
-      song.vocalLowMidi,
-      song.vocalHighMidi
+      profile.tessituraLowMidi,
+      profile.tessituraHighMidi,
+      song.tessituraLowMidi,
+      song.tessituraHighMidi,
     );
 
   let explanation =
@@ -194,16 +231,30 @@ export function matchSong(
 
   if (tessituraScore >= 85) {
     explanation =
-      "Excellent fit — most of the song sits inside your comfortable range.";
-  } else if (rangeScore >= 70) {
+      "Excellent fit — the song lives in your comfortable zone.";
+  } else if (tessituraScore >= 65) {
     explanation =
-      "Good fit — most of the song sits inside your usable range.";
+      "Good fit — most of the song sits where you sound best.";
+  } else if (rangeScore >= 80) {
+    explanation =
+      "The song fits your range, but sits outside your most comfortable band.";
+  } else if (rangeScore >= 55) {
+    explanation =
+      "You can reach this song's notes, but some parts will stretch you.";
+  } else {
+    explanation =
+      "This song lives mostly outside your comfortable range.";
   }
 
   if (Math.abs(recommendedTranspose) >= 2) {
     explanation += ` Recommended key change: ${
       recommendedTranspose > 0 ? "+" : ""
     }${recommendedTranspose} semitones.`;
+  }
+
+  // If the profile is low-signal, be honest about it.
+  if (profile.signalRatio < 30) {
+    explanation += " Your scan was brief — re-scan for a more accurate match.";
   }
 
   return {
@@ -214,12 +265,19 @@ export function matchSong(
     difficultyScore,
     recommendedTranspose,
     explanation,
+    profileUsed: {
+      comfortableLowMidi: profile.comfortableLowMidi,
+      comfortableHighMidi: profile.comfortableHighMidi,
+      tessituraLowMidi: profile.tessituraLowMidi,
+      tessituraHighMidi: profile.tessituraHighMidi,
+      tessituraCenterMidi: profile.tessituraCenterMidi,
+    },
   };
 }
 
 export function matchSongs(
   profile: VocalProfile,
-  songList: Song[]
+  songList: Song[],
 ): SongMatch[] {
   return songList
     .map((song) => matchSong(profile, song))
