@@ -227,39 +227,6 @@ export default function ScanPage() {
     animationFrame.current = requestAnimationFrame(detectLoop);
   }
 
-  // Wrap detectEngine output into a PitchFrame so the scan stream is
-  // confidence-rated end to end. detectEngine returns a number; we wrap it.
-  function detectEngineFrame(buffer: Float32Array, sampleRate: number): PitchFrame {
-    const freq = detectEngine(buffer, sampleRate);
-    if (!Number.isFinite(freq) || freq < 0) {
-      return { freq: -1, midi: -1, confidence: 0, voiced: false, rms: 0, dipQuality: 0 };
-    }
-    // Re-derive a lightweight confidence cue from the same YIN engine so the
-    // scan page doesn't need to depend on the internal yinDetect shape.
-    // We approximate: if freq is in range and detectEngine returned it, treat
-    // as voiced with a confidence blended from level + the YIN dip cue we can
-    // recover via detectPitch's underlying structure.
-    const rms = rmsOf(buffer);
-    const levelCue = Math.min(1, rms / 0.12);
-    const dipCue = 0.5; // detectEngine hides the raw dip; approximate mid confidence for voiced
-    const voiced = freq >= 70 && freq <= 1200 && levelCue > 0.04;
-    const confidence = voiced ? Math.min(1, 0.4 * levelCue + 0.6 * dipCue) : 0;
-    return {
-      freq,
-      midi: 69 + 12 * Math.log2(freq / 440),
-      confidence,
-      voiced,
-      rms,
-      dipQuality: voiced ? 0.5 : 0,
-    };
-  }
-
-  function rmsOf(buffer: Float32Array): number {
-    let sum = 0;
-    for (let i = 0; i < buffer.length; i++) sum += buffer[i] * buffer[i];
-    return Math.sqrt(sum / buffer.length);
-  }
-
   function stopScan() {
     if (animationFrame.current !== null) {
       cancelAnimationFrame(animationFrame.current);
