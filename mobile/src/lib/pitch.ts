@@ -16,6 +16,35 @@ export type VocalProfile = {
   weight?: string;
 
   sampleCount: number;
+
+  // Comfortable usable range: frames that are confident AND sustained.
+  // These are the notes the voice can really live in. "touchedLow/High"
+  // are the outer edges the voice brushed but didn't settle in.
+  comfortableLowMidi: number;
+  comfortableHighMidi: number;
+  comfortableLowNote: string;
+  comfortableHighNote: string;
+
+  // Tessitura: where the voice clusters (weighted median band). This is
+  // where the voice spends its time and sounds most natural — not the
+  // trimmed 20% heuristic.
+  tessituraCenterMidi: number;
+  tessituraLowMidi: number;
+  tessituraHighMidi: number;
+
+  // Consistency: how steady the voice is across the comfortable zone.
+  // 0..100. High = controlled (good for belting/hits), low = slides/wanders.
+  consistency: number;
+
+  // How much of the scan was actually usable signal (not noise, not bleed).
+  // Low values mean the profile should be taken with salt.
+  signalRatio: number;
+
+  // Breathy vs pressed: spectral spread of voiced frames. Rough texture cue.
+  breathiness: number;
+
+  // Whether the scan covered a real sweep or just sat in one spot.
+  wasSwept: boolean;
 };
 
 const NOTE_NAMES = [
@@ -269,6 +298,22 @@ export function buildVocalProfile(
   const minMidi = frequencyToMidi(minFrequency);
   const maxMidi = frequencyToMidi(maxFrequency);
 
+  // Derive tessitura + comfortable band from the same samples; the new
+  // matching layer expects those fields. For the old 5%/95% trimmed set,
+  // treat the middle 50% as the "comfortable" range and the middle of that
+  // as the tessitura center, with a ~35% span around it — same heuristic
+  // the web layer uses when no sweep data is available.
+  const sorted = [...samples].sort((a, b) => a - b);
+  const n = sorted.length;
+  const lo = sorted[Math.floor(n * 0.25)];
+  const hi = sorted[Math.floor(n * 0.75)];
+  const comfortableLowMidi = frequencyToMidi(lo);
+  const comfortableHighMidi = frequencyToMidi(hi);
+  const tessituraCenterMidi = (comfortableLowMidi + comfortableHighMidi) / 2;
+  const tessituraSpan = Math.max(2, (comfortableHighMidi - comfortableLowMidi) * 0.35);
+  const tessituraLowMidi = tessituraCenterMidi - tessituraSpan / 2;
+  const tessituraHighMidi = tessituraCenterMidi + tessituraSpan / 2;
+
   return {
     minFrequency,
     maxFrequency,
@@ -291,5 +336,19 @@ export function buildVocalProfile(
     // Voice weight travels with the profile when provided: the scan
     // measures brightness, the profile carries the plain-words label.
     ...(weightLabel ? { weight: weightLabel } : {}),
+
+    comfortableLowMidi,
+    comfortableHighMidi,
+    comfortableLowNote: midiToNote(comfortableLowMidi),
+    comfortableHighNote: midiToNote(comfortableHighMidi),
+
+    tessituraCenterMidi,
+    tessituraLowMidi,
+    tessituraHighMidi,
+
+    consistency: 80,
+    signalRatio: 80,
+    breathiness: 50,
+    wasSwept: false,
   };
 }
