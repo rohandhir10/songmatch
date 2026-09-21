@@ -260,8 +260,8 @@
     "duration": 298
   },
   "kal-ho-naa-ho": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 286
   },
   "channa-mereya": {
     "synced": true,
@@ -328,8 +328,8 @@
     "duration": 172
   },
   "waka-waka": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 203
   },
   "let-it-go": {
     "synced": true,
