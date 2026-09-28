@@ -284,8 +284,8 @@
     "duration": 244
   },
   "gerua": {
-    "synced": true,
-    "duration": 346
+    "synced": false,
+    "duration": null
   },
   "lag-jaa-gale": {
     "synced": true,
