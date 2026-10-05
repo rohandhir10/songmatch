@@ -284,8 +284,8 @@
     "duration": 244
   },
   "gerua": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 346
   },
   "lag-jaa-gale": {
     "synced": true,
@@ -337,7 +337,7 @@
   },
   "a-whole-new-world": {
     "synced": true,
-    "duration": 245
+    "duration": 246.960125
   },
   "how-far-ill-go": {
     "synced": true,
