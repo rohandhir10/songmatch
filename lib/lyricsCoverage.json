@@ -1,7 +1,7 @@
 {
   "hello": {
     "synced": true,
-    "duration": 295
+    "duration": 296
   },
   "easy-on-me": {
     "synced": true,
@@ -20,68 +20,68 @@
     "duration": 280
   },
   "levitating": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 204
   },
   "dont-start-now": {
-    "synced": true,
-    "duration": 183
+    "synced": false,
+    "duration": null
   },
   "bad-guy": {
     "synced": false,
     "duration": null
   },
   "drivers-license": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 242
   },
   "good-4-u": {
     "synced": false,
     "duration": null
   },
   "anti-hero": {
-    "synced": true,
-    "duration": 201
-  },
-  "wrecking-ball": {
     "synced": false,
     "duration": null
   },
-  "blinding-lights": {
+  "wrecking-ball": {
     "synced": true,
-    "duration": 200
+    "duration": 222
+  },
+  "blinding-lights": {
+    "synced": false,
+    "duration": null
   },
   "watermelon-sugar": {
     "synced": false,
     "duration": null
   },
   "sign-of-the-times": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 341
   },
   "stay": {
-    "synced": true,
-    "duration": 158
+    "synced": false,
+    "duration": null
   },
   "just-the-way-you-are": {
     "synced": false,
     "duration": null
   },
   "grenade": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 223
   },
   "thinking-out-loud": {
     "synced": false,
     "duration": null
   },
   "shivers": {
-    "synced": true,
-    "duration": 208
-  },
-  "shape-of-you": {
     "synced": false,
     "duration": null
+  },
+  "shape-of-you": {
+    "synced": true,
+    "duration": 234
   },
   "bad-habits": {
     "synced": false,
@@ -92,44 +92,44 @@
     "duration": null
   },
   "im-yours": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 222
   },
   "youre-beautiful": {
-    "synced": true,
-    "duration": 204
+    "synced": false,
+    "duration": null
   },
   "talking-to-the-moon": {
     "synced": false,
     "duration": null
   },
   "dance-monkey": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 209
   },
   "shallow": {
     "synced": false,
     "duration": null
   },
   "always-remember-us": {
-    "synced": true,
-    "duration": 210
-  },
-  "poker-face": {
     "synced": false,
     "duration": null
+  },
+  "poker-face": {
+    "synced": true,
+    "duration": 237
   },
   "let-it-be": {
     "synced": false,
     "duration": null
   },
   "hey-jude": {
-    "synced": true,
-    "duration": 417.4628608
-  },
-  "yesterday": {
     "synced": false,
     "duration": null
+  },
+  "yesterday": {
+    "synced": true,
+    "duration": 126
   },
   "blackbird": {
     "synced": false,
@@ -152,16 +152,16 @@
     "duration": null
   },
   "viva-la-vida": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 242
   },
   "sky-full-of-stars": {
     "synced": false,
     "duration": null
   },
   "creep": {
-    "synced": true,
-    "duration": 239
+    "synced": false,
+    "duration": null
   },
   "hallelujah": {
     "synced": false,
@@ -172,40 +172,40 @@
     "duration": null
   },
   "believer": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 203
   },
   "love-of-my-life": {
-    "synced": true,
-    "duration": 262
+    "synced": false,
+    "duration": null
   },
   "hotel-california": {
     "synced": false,
     "duration": null
   },
   "zombie": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 306
   },
   "stand-by-me": {
-    "synced": true,
-    "duration": 174
+    "synced": false,
+    "duration": null
   },
   "at-last": {
     "synced": false,
     "duration": null
   },
   "lean-on-me": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 259
   },
   "aint-no-sunshine": {
     "synced": false,
     "duration": null
   },
   "isnt-she-lovely": {
-    "synced": true,
-    "duration": 394
+    "synced": false,
+    "duration": null
   },
   "respect": {
     "synced": false,
@@ -216,44 +216,44 @@
     "duration": null
   },
   "i-will-always-love-you": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 274
   },
   "rolling-in-the-deep": {
-    "synced": true,
-    "duration": 228
+    "synced": false,
+    "duration": null
   },
   "halo": {
     "synced": false,
     "duration": null
   },
   "fallin": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 210
   },
   "if-i-aint-got-you": {
-    "synced": true,
-    "duration": 229
+    "synced": false,
+    "duration": null
   },
   "country-roads": {
     "synced": false,
     "duration": null
   },
   "jolene": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 160
   },
   "the-gambler": {
     "synced": false,
     "duration": null
   },
   "ring-of-fire": {
-    "synced": true,
-    "duration": 156
-  },
-  "hurt-cash": {
     "synced": false,
     "duration": null
+  },
+  "hurt-cash": {
+    "synced": true,
+    "duration": 217
   },
   "wagon-wheel": {
     "synced": false,
@@ -264,16 +264,16 @@
     "duration": null
   },
   "channa-mereya": {
-    "synced": true,
-    "duration": 230
+    "synced": false,
+    "duration": null
   },
   "ae-dil-hai-mushkil": {
     "synced": false,
     "duration": null
   },
   "agar-tum-saath-ho": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 341
   },
   "kesariya": {
     "synced": true,
@@ -297,7 +297,7 @@
   },
   "pehla-nasha": {
     "synced": true,
-    "duration": 290
+    "duration": 292
   },
   "mere-sapno-ki-rani": {
     "synced": false,
@@ -308,8 +308,8 @@
     "duration": null
   },
   "despacito": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 228
   },
   "hips-dont-lie": {
     "synced": false,
@@ -320,28 +320,28 @@
     "duration": null
   },
   "senorita": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 206
   },
   "havana": {
-    "synced": true,
-    "duration": 403
+    "synced": false,
+    "duration": null
   },
   "waka-waka": {
     "synced": false,
     "duration": null
   },
   "let-it-go": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 224
   },
   "a-whole-new-world": {
     "synced": false,
     "duration": null
   },
   "how-far-ill-go": {
-    "synced": true,
-    "duration": 176
+    "synced": false,
+    "duration": null
   },
   "wonderful-world": {
     "synced": false,
@@ -364,20 +364,20 @@
     "duration": null
   },
   "with-or-without-you": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 292
   },
   "perfect": {
-    "synced": true,
-    "duration": 264
+    "synced": false,
+    "duration": null
   },
   "until-i-found-you": {
     "synced": false,
     "duration": null
   },
   "all-of-me": {
-    "synced": false,
-    "duration": null
+    "synced": true,
+    "duration": 270
   },
   "someone-you-loved": {
     "synced": false,
